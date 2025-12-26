@@ -37,76 +37,122 @@
 </script>
 
 <div class="p-8">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold text-gray-800 dark:text-white">
-            Dashboard
-        </h1>
-        <Button onclick={handleSync} disabled={syncing}>
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-4xl font-bold text-white mb-2">Dashboard</h1>
+            <p class="text-slate-400">
+                Monitor your infinite buying strategy cycles
+            </p>
+        </div>
+        <button onclick={handleSync} disabled={syncing} class="btn-primary">
             {#if syncing}
                 <Spinner size="4" class="mr-2" /> Syncing...
             {:else}
+                <svg
+                    class="w-5 h-5 mr-2 inline-block"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                </svg>
                 Sync Now
             {/if}
-        </Button>
+        </button>
     </div>
 
     {#if loading}
-        <div class="text-center">Loading...</div>
+        <div class="text-center py-12">
+            <Spinner size="12" />
+            <p class="text-slate-400 mt-4">Loading dashboard...</p>
+        </div>
     {:else if cycles.length === 0}
-        <div class="text-gray-500">
-            No active cycles found. Check Settings or Sync.
+        <div class="stat-card text-center py-12">
+            <svg
+                class="w-16 h-16 mx-auto text-slate-600 mb-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+            >
+                <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                />
+            </svg>
+            <p class="text-slate-300 text-lg mb-2">No active cycles found</p>
+            <p class="text-slate-500">
+                Check Settings or click Sync to get started
+            </p>
         </div>
     {:else}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {#each cycles as cycle}
-                <Card class="w-full max-w-sm">
-                    <h5
-                        class="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white"
-                    >
-                        {cycle.Symbol}
-                    </h5>
-                    <div
-                        class="font-normal text-gray-700 dark:text-gray-400 space-y-2"
-                    >
-                        <div class="flex justify-between">
-                            <span>Cycle Day:</span>
-                            <span class="font-semibold"
-                                >{cycle.CurrentCycleDay} / 40</span
-                            >
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Held Qty:</span>
-                            <span class="font-semibold"
-                                >{cycle.TotalBoughtQty}</span
-                            >
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Avg Price:</span>
-                            <span class="font-semibold"
-                                >${cycle.AvgPrice.toFixed(2)}</span
-                            >
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Invested:</span>
-                            <span class="font-semibold"
-                                >${cycle.TotalInvested.toFixed(2)}</span
-                            >
+                <div class="stat-card">
+                    <div class="flex justify-between items-start mb-4">
+                        <h5 class="text-2xl font-bold text-blue-400">
+                            {cycle.Symbol}
+                        </h5>
+                        <span
+                            class="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium"
+                        >
+                            Active
+                        </span>
+                    </div>
+
+                    <div class="space-y-3 text-slate-300">
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400">Cycle Progress</span>
+                            <span class="font-semibold text-white">
+                                {cycle.CurrentCycleDay} / 40
+                            </span>
                         </div>
 
-                        <!-- Progress Bar Logic (simple) -->
+                        <!-- Progress Bar -->
                         <div
-                            class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mt-4"
+                            class="w-full bg-slate-800 rounded-full h-2 overflow-hidden"
                         >
                             <div
-                                class="bg-blue-600 h-2.5 rounded-full"
+                                class="bg-gradient-to-r from-blue-600 to-blue-400 h-2 rounded-full transition-all duration-500"
                                 style="width: {Math.min(
                                     (cycle.CurrentCycleDay / 40) * 100,
                                     100,
                                 )}%"
                             ></div>
                         </div>
+
+                        <div class="pt-2 space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Holdings</span>
+                                <span class="font-semibold text-white"
+                                    >{cycle.TotalBoughtQty} shares</span
+                                >
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Avg Price</span>
+                                <span class="font-semibold text-green-400"
+                                    >${cycle.AvgPrice.toFixed(2)}</span
+                                >
+                            </div>
+                            <div
+                                class="flex justify-between pt-2 border-t border-slate-700"
+                            >
+                                <span class="text-slate-400"
+                                    >Total Invested</span
+                                >
+                                <span class="font-bold text-xl text-white"
+                                    >${cycle.TotalInvested.toFixed(2)}</span
+                                >
+                            </div>
+                        </div>
                     </div>
-                </Card>
+                </div>
             {/each}
         </div>
     {/if}
