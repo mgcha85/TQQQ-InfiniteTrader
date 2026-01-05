@@ -15,6 +15,7 @@ services:
       - KIS_APP_KEY=${KIS_APP_KEY}
       - KIS_APP_SECRET=${KIS_APP_SECRET}
       - KIS_ACCOUNT_NUM=${KIS_ACCOUNT_NUM}
+      - TZ=Asia/Seoul
     restart: always
 
   frontend:

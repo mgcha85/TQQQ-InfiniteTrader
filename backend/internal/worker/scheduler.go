@@ -2,6 +2,7 @@ package worker
 
 import (
 	"log"
+	"time"
 
 	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/service"
 	"github.com/robfig/cron/v3"
@@ -13,7 +14,11 @@ type Scheduler struct {
 }
 
 func NewScheduler(strat *service.Strategy) *Scheduler {
-	c := cron.New()
+	loc, err := time.LoadLocation("Asia/Seoul")
+	if err != nil {
+		log.Fatal("Failed to load Asia/Seoul location:", err)
+	}
+	c := cron.New(cron.WithLocation(loc))
 	return &Scheduler{Cron: c, Strat: strat}
 }
 

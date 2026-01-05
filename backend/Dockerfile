@@ -3,7 +3,8 @@ FROM golang:1.23-alpine
 WORKDIR /app
 
 # Install git and build tools (gcc, musl-dev) for CGO
-RUN apk add --no-cache git build-base
+# Install git and build tools (gcc, musl-dev) for CGO, and tzdata for timezone support
+RUN apk add --no-cache git build-base tzdata
 
 ENV CGO_ENABLED=1
 

@@ -66,11 +66,12 @@
         >
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-2">
-                    <label class="text-sm font-medium text-slate-300"
+                    <label class="text-sm font-medium text-slate-300" for="principal"
                         >Principal Amount ($)</label
                     >
                     <input
                         type="number"
+                        id="principal"
                         bind:value={settings.Principal}
                         required
                         class="input-field w-full"
@@ -82,11 +83,12 @@
                 </div>
 
                 <div class="space-y-2">
-                    <label class="text-sm font-medium text-slate-300"
+                    <label class="text-sm font-medium text-slate-300" for="splitCount"
                         >Split Count</label
                     >
                     <input
                         type="number"
+                        id="splitCount"
                         bind:value={settings.SplitCount}
                         required
                         class="input-field w-full"
@@ -100,11 +102,12 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-2">
-                    <label class="text-sm font-medium text-slate-300"
+                    <label class="text-sm font-medium text-slate-300" for="targetRate"
                         >Target Profit Rate</label
                     >
                     <input
                         type="number"
+                        id="targetRate"
                         step="0.01"
                         bind:value={settings.TargetRate}
                         required
@@ -117,11 +120,12 @@
                 </div>
 
                 <div class="space-y-2">
-                    <label class="text-sm font-medium text-slate-300"
+                    <label class="text-sm font-medium text-slate-300" for="symbols"
                         >Trading Symbols</label
                     >
                     <input
                         type="text"
+                        id="symbols"
                         bind:value={settings.Symbols}
                         required
                         class="input-field w-full"
