@@ -256,7 +256,7 @@ curl -s -X POST http://localhost:8081/api/sync | jq
 - "Sync Now" 버튼 클릭 → KIS 계좌 잔고와 로컬 DB 동기화
 
 ### 4. 자동 실행
-- 스케줄러가 매일 **05:00 KST (화~토)**에 자동으로 전략 실행
+- 스케줄러가 매일 **15:50 ET (월~금)**에 자동으로 전략 실행 (미국 장 마감 10분 전)
 - 로그는 Docker 컨테이너 로그에서 확인:
   ```bash
   docker-compose logs -f backend
@@ -327,7 +327,50 @@ TQQQ-InfiniteTrader/
 ### 운영
 - 매도 체결 후 사이클이 자동으로 리셋됩니다
 - 주말/공휴일에는 미국 증시 휴장으로 거래 불가
-- 스케줄러는 화~토 새벽 5시 실행 (미국 시간 기준 전날 장 마감)
+- 스케줄러는 **월~금 15:50 ET** 실행 (미국 장 마감 10분 전)
+
+---
+
+## 클라우드 서버 배포
+
+### 사전 요구사항
+- Docker 및 Docker Compose 설치
+- 서버 시간대를 **America/New_York (ET)**으로 설정 권장
+
+### 1. 서버 시간대 설정 (선택)
+```bash
+# Ubuntu/Debian
+sudo timedatectl set-timezone America/New_York
+
+# 확인
+date
+```
+
+> **참고**: 컨테이너 내부는 `docker-compose.yml`의 `TZ=America/New_York` 환경변수로 자동 설정됩니다.
+> 호스트 시간대 설정은 선택사항이며, 로그 확인 시 편의를 위한 것입니다.
+
+### 2. 프로젝트 배포
+```bash
+git clone <repository-url>
+cd TQQQ-InfiniteTrader
+
+# 환경 변수 설정
+cp .env.example .env
+nano .env  # KIS API 키 입력
+
+# 컨테이너 실행
+docker-compose up -d --build
+```
+
+### 3. 스케줄러 확인
+```bash
+# 로그에서 스케줄러 시작 메시지 확인
+docker logs tqqq-backend | grep "Scheduler"
+# 예상 출력: Scheduler started (15:50 ET Mon-Fri)
+```
+
+### 4. 미국 공휴일 처리
+현재 스케줄러는 미국 공휴일을 자동으로 감지하지 않습니다. 공휴일에는 KIS API에서 주문이 거부될 수 있으며, 이는 정상 동작입니다.
 
 ---
 

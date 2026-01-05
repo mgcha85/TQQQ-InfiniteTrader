@@ -14,25 +14,20 @@ type Scheduler struct {
 }
 
 func NewScheduler(strat *service.Strategy) *Scheduler {
-	loc, err := time.LoadLocation("Asia/Seoul")
+	loc, err := time.LoadLocation("America/New_York")
 	if err != nil {
-		log.Fatal("Failed to load Asia/Seoul location:", err)
+		log.Fatal("Failed to load America/New_York location:", err)
 	}
 	c := cron.New(cron.WithLocation(loc))
 	return &Scheduler{Cron: c, Strat: strat}
 }
 
 func (s *Scheduler) Start() {
-	// Schedule for 23:50 KST (approx market open/close timing needs checking)
-	// User can configure this. For now, daily at a fixed time.
-	// US Market Open is 09:30 ET. Close 16:00 ET.
-	// LOC orders should be placed before close (e.g., 15:50 ET).
-	// 15:50 ET = 05:50 KST (Next Day).
-	// Let's set it to run every 10 minutes to verify "Current Time vs Market Time" or just trigger
-	// Strategy logic usually guards against duplicate buys.
-	// But let's set a fixed time: "0 5 * * 2-6" (05:00 AM Tue-Sat KST => 15:00 PM Mon-Fri ET approx)
+	// US Market Close: 16:00 ET
+	// LOC orders should be placed before close (e.g., 15:50 ET)
+	// Schedule: Mon-Fri 15:50 ET
 
-	_, err := s.Cron.AddFunc("0 5 * * 2-6", func() {
+	_, err := s.Cron.AddFunc("50 15 * * 1-5", func() {
 		log.Println("Running Daily Strategy...")
 		s.Strat.ExecuteDaily()
 	})
@@ -41,5 +36,5 @@ func (s *Scheduler) Start() {
 	}
 
 	s.Cron.Start()
-	log.Println("Scheduler started (05:00 KST Tue-Sat)")
+	log.Println("Scheduler started (15:50 ET Mon-Fri)")
 }
