@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"sync"
@@ -21,10 +22,17 @@ type Client struct {
 }
 
 func NewClient(cfg *config.Config) *Client {
+	log.Printf("[KIS] Initializing KIS API Client (BaseURL: %s)", cfg.KisBaseURL)
 	return &Client{
 		Config: cfg,
 		Client: &http.Client{Timeout: 10 * time.Second},
 	}
+}
+
+// logKIS logs a message with KIS prefix and timestamp
+func logKIS(format string, v ...interface{}) {
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	log.Printf("[%s][KIS] "+format, append([]interface{}{timestamp}, v...)...)
 }
 
 type AuthResponse struct {
@@ -38,8 +46,13 @@ func (c *Client) EnsureToken() error {
 	defer c.mu.Unlock()
 
 	if c.AccessToken != "" && time.Now().Before(c.TokenExp.Add(-10*time.Minute)) {
+		logKIS("Token still valid (expires at %s, %v remaining)",
+			c.TokenExp.Format("15:04:05"),
+			time.Until(c.TokenExp).Round(time.Second))
 		return nil
 	}
+
+	logKIS("Token expired or not set, requesting new token...")
 
 	url := fmt.Sprintf("%s/oauth2/tokenP", c.Config.KisBaseURL)
 	body := map[string]string{
@@ -49,31 +62,42 @@ func (c *Client) EnsureToken() error {
 	}
 	jsonBody, _ := json.Marshal(body)
 
+	logKIS("POST %s (requesting OAuth token)", url)
+
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
 	if err != nil {
+		logKIS("✗ Failed to create token request: %v", err)
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.Client.Do(req)
 	if err != nil {
+		logKIS("✗ Token request failed: %v", err)
 		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		logKIS("✗ Auth failed with status %d: %s", resp.StatusCode, string(bodyBytes))
 		return fmt.Errorf("auth failed with status: %d", resp.StatusCode)
 	}
 
 	var authResp AuthResponse
 	if err := json.NewDecoder(resp.Body).Decode(&authResp); err != nil {
+		logKIS("✗ Failed to decode token response: %v", err)
 		return err
 	}
 
 	c.AccessToken = authResp.AccessToken
 	// Usually expires in 86400 seconds (24 hours)
 	c.TokenExp = time.Now().Add(time.Duration(authResp.ExpiresIn) * time.Second)
-	log.Printf("KIS API Token refreshed, expires at %s", c.TokenExp)
+
+	logKIS("✓ Token refreshed successfully")
+	logKIS("  Token expires at: %s (%v from now)",
+		c.TokenExp.Format("2006-01-02 15:04:05"),
+		time.Until(c.TokenExp).Round(time.Second))
 
 	return nil
 }
@@ -89,13 +113,19 @@ type PriceResponse struct {
 }
 
 func (c *Client) GetCurrentPrice(exchCode, symbol string) (float64, error) {
+	logKIS("GetCurrentPrice: Fetching price for %s:%s", exchCode, symbol)
+
 	if err := c.EnsureToken(); err != nil {
+		logKIS("✗ GetCurrentPrice: Token error: %v", err)
 		return 0, err
 	}
 
 	url := fmt.Sprintf("%s/uapi/overseas-price/v1/quotations/price?AUTH=&EXCD=%s&SYMB=%s", c.Config.KisBaseURL, exchCode, symbol)
+	logKIS("GET %s", url)
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		logKIS("✗ GetCurrentPrice: Failed to create request: %v", err)
 		return 0, err
 	}
 
@@ -107,26 +137,32 @@ func (c *Client) GetCurrentPrice(exchCode, symbol string) (float64, error) {
 
 	resp, err := c.Client.Do(req)
 	if err != nil {
+		logKIS("✗ GetCurrentPrice: Request failed: %v", err)
 		return 0, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		logKIS("✗ GetCurrentPrice: Bad status %d: %s", resp.StatusCode, string(bodyBytes))
 		return 0, fmt.Errorf("bad status: %d", resp.StatusCode)
 	}
 
 	var pResp PriceResponse
 	if err := json.NewDecoder(resp.Body).Decode(&pResp); err != nil {
+		logKIS("✗ GetCurrentPrice: Failed to decode response: %v", err)
 		return 0, err
 	}
 
 	if pResp.RtCd != "0000" {
+		logKIS("✗ GetCurrentPrice: API error: %s", pResp.Msg1)
 		return 0, fmt.Errorf("api error: %s", pResp.Msg1)
 	}
 
 	// Parse price (string to float)
 	var price float64
 	fmt.Sscanf(pResp.Output.Last, "%f", &price)
+	logKIS("✓ GetCurrentPrice: %s:%s = $%.2f (base: %s)", exchCode, symbol, price, pResp.Output.Base)
 	return price, nil
 }
 
@@ -140,8 +176,24 @@ type OrderReq struct {
 	Side     string // BUY or SELL
 }
 
+// OrderResponse represents the response from order API
+type OrderResponse struct {
+	RtCd   string `json:"rt_cd"`
+	Msg1   string `json:"msg1"`
+	MsgCd  string `json:"msg_cd"`
+	Output struct {
+		KRX_FWDG_ORD_ORGNO string `json:"KRX_FWDG_ORD_ORGNO"`
+		ODNO               string `json:"ODNO"`
+		ORD_TMD            string `json:"ORD_TMD"`
+	} `json:"output"`
+}
+
 func (c *Client) PlaceOrder(o OrderReq) error {
+	logKIS("PlaceOrder: %s %d shares of %s:%s at $%.2f (type: %s)",
+		o.Side, o.Qty, o.ExchCode, o.Symbol, o.Price, o.OrdType)
+
 	if err := c.EnsureToken(); err != nil {
+		logKIS("✗ PlaceOrder: Token error: %v", err)
 		return err
 	}
 
@@ -149,9 +201,11 @@ func (c *Client) PlaceOrder(o OrderReq) error {
 	if o.Side == "SELL" {
 		trID = "TTTT1006U" // Sell (Real)
 	}
+	logKIS("PlaceOrder: Using TR_ID=%s for %s order", trID, o.Side)
 	// TODO: Handle Virtual Trading TR IDs if needed (JTTT1002U, JTTT1006U)
 
 	url := fmt.Sprintf("%s/uapi/overseas-stock/v1/trading/order", c.Config.KisBaseURL)
+	logKIS("POST %s", url)
 
 	body := map[string]string{
 		"CANO":            c.Config.KisAccountNum[:8],
@@ -164,9 +218,11 @@ func (c *Client) PlaceOrder(o OrderReq) error {
 		"ORD_DVSN":        o.OrdType,
 	}
 	jsonBody, _ := json.Marshal(body)
+	logKIS("PlaceOrder: Request body: %s", string(jsonBody))
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
 	if err != nil {
+		logKIS("✗ PlaceOrder: Failed to create request: %v", err)
 		return err
 	}
 
@@ -178,13 +234,30 @@ func (c *Client) PlaceOrder(o OrderReq) error {
 
 	resp, err := c.Client.Do(req)
 	if err != nil {
+		logKIS("✗ PlaceOrder: Request failed: %v", err)
 		return err
 	}
 	defer resp.Body.Close()
 
+	// Read response body for logging
+	bodyBytes, _ := io.ReadAll(resp.Body)
+
 	if resp.StatusCode != 200 {
-		// Read body for error
-		return fmt.Errorf("order failed status: %d", resp.StatusCode)
+		logKIS("✗ PlaceOrder: Failed with status %d: %s", resp.StatusCode, string(bodyBytes))
+		return fmt.Errorf("order failed status: %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	// Parse response for detailed logging
+	var orderResp OrderResponse
+	if err := json.Unmarshal(bodyBytes, &orderResp); err == nil {
+		if orderResp.RtCd == "0" {
+			logKIS("✓ PlaceOrder: SUCCESS - Order ID: %s, Time: %s, Msg: %s",
+				orderResp.Output.ODNO, orderResp.Output.ORD_TMD, orderResp.Msg1)
+		} else {
+			logKIS("⚠ PlaceOrder: Response Code: %s, Msg: %s", orderResp.RtCd, orderResp.Msg1)
+		}
+	} else {
+		logKIS("✓ PlaceOrder: Completed (raw response: %s)", string(bodyBytes))
 	}
 
 	return nil
@@ -206,14 +279,20 @@ type BalanceResponse struct {
 }
 
 func (c *Client) GetBalance() (*BalanceResponse, error) {
+	logKIS("GetBalance: Fetching portfolio balance...")
+
 	if err := c.EnsureToken(); err != nil {
+		logKIS("✗ GetBalance: Token error: %v", err)
 		return nil, err
 	}
 
 	// Note: CTX_AREA keys might be needed for pagination, empty for first page
 	url := fmt.Sprintf("%s/uapi/overseas-stock/v1/trading/inquire-balance?AUTH=&CANO=%s&ACNT_PRDT_CD=%s&OVRS_EXCG_CD=NAS&TR_CRCY_CD=USD&CTX_AREA_FK100=&CTX_AREA_NK100=", c.Config.KisBaseURL, c.Config.KisAccountNum[:8], c.Config.KisAccountNum[8:])
+	logKIS("GET %s", url)
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		logKIS("✗ GetBalance: Failed to create request: %v", err)
 		return nil, err
 	}
 
@@ -225,21 +304,31 @@ func (c *Client) GetBalance() (*BalanceResponse, error) {
 
 	resp, err := c.Client.Do(req)
 	if err != nil {
+		logKIS("✗ GetBalance: Request failed: %v", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		logKIS("✗ GetBalance: Bad status %d: %s", resp.StatusCode, string(bodyBytes))
 		return nil, fmt.Errorf("balance failed status: %d", resp.StatusCode)
 	}
 
 	var bResp BalanceResponse
 	if err := json.NewDecoder(resp.Body).Decode(&bResp); err != nil {
+		logKIS("✗ GetBalance: Failed to decode response: %v", err)
 		return nil, err
 	}
 
 	if bResp.RtCd != "0000" {
+		logKIS("✗ GetBalance: API error: %s", bResp.Msg1)
 		return nil, fmt.Errorf("api error: %s", bResp.Msg1)
+	}
+
+	logKIS("✓ GetBalance: Found %d holdings, Total P/L: %s", len(bResp.Output1), bResp.Output2.TotalAmt)
+	for i, h := range bResp.Output1 {
+		logKIS("  [%d] %s:%s - Qty: %s, AvgPrice: %s", i+1, h.ExchCode, h.Symbol, h.Qty, h.AvgPrice)
 	}
 
 	return &bResp, nil
