@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -41,15 +42,30 @@ type AuthResponse struct {
 	ExpiresIn   int    `json:"expires_in"`
 }
 
+const TokenFile = "kis_token.json"
+
 func (c *Client) EnsureToken() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	// 1. Check memory
 	if c.AccessToken != "" && time.Now().Before(c.TokenExp.Add(-10*time.Minute)) {
-		logKIS("Token still valid (expires at %s, %v remaining)",
+		logKIS("Token still valid (memory) (expires at %s, %v remaining)",
 			c.TokenExp.Format("15:04:05"),
 			time.Until(c.TokenExp).Round(time.Second))
 		return nil
+	}
+
+	// 2. Check file
+	if c.AccessToken == "" {
+		if err := c.loadTokenFromFile(); err == nil {
+			if time.Now().Before(c.TokenExp.Add(-10 * time.Minute)) {
+				logKIS("Token load from file valid (expires at %s, %v remaining)",
+					c.TokenExp.Format("15:04:05"),
+					time.Until(c.TokenExp).Round(time.Second))
+				return nil
+			}
+		}
 	}
 
 	logKIS("Token expired or not set, requesting new token...")
@@ -94,12 +110,53 @@ func (c *Client) EnsureToken() error {
 	// Usually expires in 86400 seconds (24 hours)
 	c.TokenExp = time.Now().Add(time.Duration(authResp.ExpiresIn) * time.Second)
 
+	// Save to file
+	c.saveTokenToFile()
+
 	logKIS("✓ Token refreshed successfully")
 	logKIS("  Token expires at: %s (%v from now)",
 		c.TokenExp.Format("2006-01-02 15:04:05"),
 		time.Until(c.TokenExp).Round(time.Second))
 
 	return nil
+}
+
+func (c *Client) loadTokenFromFile() error {
+	file, err := os.Open(TokenFile)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	var data struct {
+		AccessToken string    `json:"access_token"`
+		TokenExp    time.Time `json:"token_exp"`
+	}
+	if err := json.NewDecoder(file).Decode(&data); err != nil {
+		return err
+	}
+
+	c.AccessToken = data.AccessToken
+	c.TokenExp = data.TokenExp
+	return nil
+}
+
+func (c *Client) saveTokenToFile() {
+	data := struct {
+		AccessToken string    `json:"access_token"`
+		TokenExp    time.Time `json:"token_exp"`
+	}{
+		AccessToken: c.AccessToken,
+		TokenExp:    c.TokenExp,
+	}
+
+	file, err := os.Create(TokenFile)
+	if err != nil {
+		logKIS("Warning: Failed to save token to file: %v", err)
+		return
+	}
+	defer file.Close()
+	json.NewEncoder(file).Encode(data)
 }
 
 // Price Response
@@ -110,6 +167,19 @@ type PriceResponse struct {
 	} `json:"output"`
 	RtCd string `json:"rt_cd"`
 	Msg1 string `json:"msg1"`
+}
+
+// getAccountParts splits account number into CANO (8 digits) and ACNT_PRDT_CD (2 digits)
+func (c *Client) getAccountParts() (string, string) {
+	acc := c.Config.KisAccountNum
+	if len(acc) == 8 {
+		return acc, "01" // Default to 01 if only CANO is provided
+	}
+	if len(acc) >= 10 {
+		return acc[:8], acc[8:10]
+	}
+	// Fallback/Error case, though Config should validate
+	return acc, "01"
 }
 
 func (c *Client) GetCurrentPrice(exchCode, symbol string) (float64, error) {
@@ -207,9 +277,11 @@ func (c *Client) PlaceOrder(o OrderReq) error {
 	url := fmt.Sprintf("%s/uapi/overseas-stock/v1/trading/order", c.Config.KisBaseURL)
 	logKIS("POST %s", url)
 
+	cano, prdt := c.getAccountParts()
+
 	body := map[string]string{
-		"CANO":            c.Config.KisAccountNum[:8],
-		"ACNT_PRDT_CD":    c.Config.KisAccountNum[8:],
+		"CANO":            cano,
+		"ACNT_PRDT_CD":    prdt,
 		"OVRS_EXCG_CD":    o.ExchCode,
 		"PDNO":            o.Symbol,
 		"ORD_QTY":         fmt.Sprintf("%d", o.Qty),
@@ -286,8 +358,10 @@ func (c *Client) GetBalance() (*BalanceResponse, error) {
 		return nil, err
 	}
 
+	cano, prdt := c.getAccountParts()
+
 	// Note: CTX_AREA keys might be needed for pagination, empty for first page
-	url := fmt.Sprintf("%s/uapi/overseas-stock/v1/trading/inquire-balance?AUTH=&CANO=%s&ACNT_PRDT_CD=%s&OVRS_EXCG_CD=NAS&TR_CRCY_CD=USD&CTX_AREA_FK100=&CTX_AREA_NK100=", c.Config.KisBaseURL, c.Config.KisAccountNum[:8], c.Config.KisAccountNum[8:])
+	url := fmt.Sprintf("%s/uapi/overseas-stock/v1/trading/inquire-balance?AUTH=&CANO=%s&ACNT_PRDT_CD=%s&OVRS_EXCG_CD=NAS&TR_CRCY_CD=USD&CTX_AREA_FK100=&CTX_AREA_NK100=", c.Config.KisBaseURL, cano, prdt)
 	logKIS("GET %s", url)
 
 	req, err := http.NewRequest("GET", url, nil)
