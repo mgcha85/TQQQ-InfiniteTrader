@@ -24,7 +24,7 @@ services:
       dockerfile: Dockerfile
     container_name: tqqq-frontend
     ports:
-      - "3000:3000"
+      - "7700:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
