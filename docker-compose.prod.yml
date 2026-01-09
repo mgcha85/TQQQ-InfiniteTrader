@@ -16,7 +16,7 @@ services:
     image: ghcr.io/mgcha85/tqqq-frontend:latest
     container_name: tqqq-frontend
     ports:
-      - "7700:80"
+      - "3000:80"
     depends_on:
       - backend
     restart: always
