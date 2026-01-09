@@ -86,39 +86,6 @@ func main() {
 	// 3. KIS Client
 	client := kis.NewClient(cfg)
 
-	// Try to find valid product code
-	originalAcc := cfg.KisAccountNum
-	if len(originalAcc) == 8 {
-		log.Println("Account number is 8 digits, trying to find valid product code...")
-		codes := []string{"01", "22", "11", "02", "10", "21"}
-
-		found := false
-		for _, code := range codes {
-			// Update config with appended product code
-			// e.g. 64796122 -> 6479612201
-			client.Config.KisAccountNum = originalAcc + code
-			log.Printf("Trying Product Code: %s (Full: %s)", code, client.Config.KisAccountNum)
-
-			// Try GetBalance
-			bal, err := client.GetBalance()
-			if err == nil && bal != nil {
-				log.Printf("SUCCESS! Found valid product code: %s", code)
-				log.Printf("Balance: %s", bal.Output2.TotalAmt)
-				found = true
-				break
-			} else {
-				log.Printf("Failed with code %s: %v", code, err)
-			}
-
-			// Sleep a bit to avoid rate limits?
-		}
-
-		if !found {
-			log.Println("Could not find valid product code in common list. Reverting to 01 default logic for execution attempt.")
-			client.Config.KisAccountNum = originalAcc // Revert
-		}
-	}
-
 	// 4. Strategy
 	strat := service.NewStrategy(db, client)
 

@@ -1,13 +1,33 @@
-FROM node:20-alpine
+# ============================================
+# Stage 1: Builder
+# ============================================
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Copy package files
 COPY package*.json ./
 
-RUN npm install --legacy-peer-deps
+# Install dependencies
+RUN npm ci
 
+# Copy source code
 COPY . .
 
-EXPOSE 3000
+# Build for production
+RUN npm run build
 
-CMD ["npm", "run", "dev", "--", "--host", "--port", "3000"]
+# ============================================
+# Stage 2: Production with Nginx
+# ============================================
+FROM nginx:alpine
+
+# Copy built files from builder
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# Copy nginx config for SPA routing
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

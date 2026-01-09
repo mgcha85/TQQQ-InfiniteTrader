@@ -218,14 +218,19 @@ func (c *Client) GetCurrentPrice(exchCode, symbol string) (float64, error) {
 		return 0, fmt.Errorf("bad status: %d", resp.StatusCode)
 	}
 
+	// Read response for debugging
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	logKIS("GetCurrentPrice: Raw response: %s", string(bodyBytes))
+
 	var pResp PriceResponse
-	if err := json.NewDecoder(resp.Body).Decode(&pResp); err != nil {
+	if err := json.Unmarshal(bodyBytes, &pResp); err != nil {
 		logKIS("✗ GetCurrentPrice: Failed to decode response: %v", err)
 		return 0, err
 	}
 
-	if pResp.RtCd != "0000" {
-		logKIS("✗ GetCurrentPrice: API error: %s", pResp.Msg1)
+	// Success codes: "0" or "0000"
+	if pResp.RtCd != "0" && pResp.RtCd != "0000" {
+		logKIS("✗ GetCurrentPrice: API error (RtCd=%s): %s", pResp.RtCd, pResp.Msg1)
 		return 0, fmt.Errorf("api error: %s", pResp.Msg1)
 	}
 
@@ -360,8 +365,9 @@ func (c *Client) GetBalance() (*BalanceResponse, error) {
 
 	cano, prdt := c.getAccountParts()
 
-	// Note: CTX_AREA keys might be needed for pagination, empty for first page
-	url := fmt.Sprintf("%s/uapi/overseas-stock/v1/trading/inquire-balance?AUTH=&CANO=%s&ACNT_PRDT_CD=%s&OVRS_EXCG_CD=NAS&TR_CRCY_CD=USD&CTX_AREA_FK100=&CTX_AREA_NK100=", c.Config.KisBaseURL, cano, prdt)
+	// Note: CTX_AREA keys are for pagination, empty for first page
+	// API requires FK200/NK200, not FK100/NK100
+	url := fmt.Sprintf("%s/uapi/overseas-stock/v1/trading/inquire-balance?AUTH=&CANO=%s&ACNT_PRDT_CD=%s&OVRS_EXCG_CD=NASD&TR_CRCY_CD=USD&CTX_AREA_FK200=&CTX_AREA_NK200=", c.Config.KisBaseURL, cano, prdt)
 	logKIS("GET %s", url)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -389,14 +395,19 @@ func (c *Client) GetBalance() (*BalanceResponse, error) {
 		return nil, fmt.Errorf("balance failed status: %d", resp.StatusCode)
 	}
 
+	// Read body for debugging
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	logKIS("GetBalance: Raw response: %s", string(bodyBytes))
+
 	var bResp BalanceResponse
-	if err := json.NewDecoder(resp.Body).Decode(&bResp); err != nil {
+	if err := json.Unmarshal(bodyBytes, &bResp); err != nil {
 		logKIS("✗ GetBalance: Failed to decode response: %v", err)
 		return nil, err
 	}
 
-	if bResp.RtCd != "0000" {
-		logKIS("✗ GetBalance: API error: %s", bResp.Msg1)
+	// Success codes: "0" or "0000"
+	if bResp.RtCd != "0" && bResp.RtCd != "0000" {
+		logKIS("✗ GetBalance: API error (RtCd=%s): %s", bResp.RtCd, bResp.Msg1)
 		return nil, fmt.Errorf("api error: %s", bResp.Msg1)
 	}
 

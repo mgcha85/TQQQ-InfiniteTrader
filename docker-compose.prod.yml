@@ -1,0 +1,22 @@
+services:
+  backend:
+    image: ghcr.io/mgcha85/tqqq-backend:latest
+    container_name: tqqq-backend
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      - TZ=America/New_York
+    restart: always
+
+  frontend:
+    image: ghcr.io/mgcha85/tqqq-frontend:latest
+    container_name: tqqq-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: always

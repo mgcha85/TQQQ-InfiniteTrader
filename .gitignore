@@ -1,1 +1,22 @@
+# Environment
 .env
+
+# Database
+*.sqlite
+data/
+
+# Go
+kis_token.json
+
+# Node
+node_modules/
+frontend/build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
