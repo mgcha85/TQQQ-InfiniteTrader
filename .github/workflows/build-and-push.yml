@@ -83,6 +83,7 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd ~/TQQQ-InfiniteTrader
+            git pull origin master
             
             # Login to GHCR with Podman
             echo ${{ secrets.GHCR_TOKEN }} | podman login ghcr.io -u ${{ github.repository_owner }} --password-stdin
