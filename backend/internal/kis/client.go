@@ -424,3 +424,65 @@ func (c *Client) GetBalance() (*BalanceResponse, error) {
 
 	return &bResp, nil
 }
+
+// PresentBalanceResponse for overseas stock present balance (cash inquiry)
+type PresentBalanceResponse struct {
+	Output struct {
+		FrcrDncaTotAmt string `json:"frcr_dnca_tot_amt"`  // Foreign currency deposit total (USD)
+		FrcrBuyAmt     string `json:"frcr_buy_amt_smtl"`  // Foreign currency buy amount
+		FrcrSellAmt    string `json:"frcr_sell_amt_smtl"` // Foreign currency sell amount
+		OvrsOrdPsblAmt string `json:"ovrs_ord_psbl_amt"`  // Overseas order available amount
+	} `json:"output2"`
+	RtCd string `json:"rt_cd"`
+	Msg1 string `json:"msg1"`
+}
+
+// GetPresentBalance fetches available cash balance for overseas stock trading
+func (c *Client) GetPresentBalance() (*PresentBalanceResponse, error) {
+	logKIS("GetPresentBalance: Fetching available cash...")
+
+	if err := c.EnsureToken(); err != nil {
+		logKIS("✗ GetPresentBalance: Token error: %v", err)
+		return nil, err
+	}
+
+	cano, prdt := c.getAccountParts()
+
+	// Use present balance API
+	url := fmt.Sprintf("%s/uapi/overseas-stock/v1/trading/inquire-present-balance?CANO=%s&ACNT_PRDT_CD=%s&WCRC_FRCR_DVSN_CD=02&NATN_CD=840&TR_MKET_CD=00&INQR_DVSN_CD=00",
+		c.Config.KisBaseURL, cano, prdt)
+	logKIS("GET %s", url)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("content-type", "application/json")
+	req.Header.Set("authorization", "Bearer "+c.AccessToken)
+	req.Header.Set("appkey", c.Config.KisAppKey)
+	req.Header.Set("appsecret", c.Config.KisAppSecret)
+	req.Header.Set("tr_id", "CTRP6504R") // Present balance inquiry
+
+	resp, err := c.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	logKIS("GetPresentBalance: Raw response: %s", string(bodyBytes))
+
+	var pResp PresentBalanceResponse
+	if err := json.Unmarshal(bodyBytes, &pResp); err != nil {
+		return nil, err
+	}
+
+	if pResp.RtCd != "0" && pResp.RtCd != "0000" {
+		logKIS("✗ GetPresentBalance: API error (RtCd=%s): %s", pResp.RtCd, pResp.Msg1)
+		return nil, fmt.Errorf("api error: %s", pResp.Msg1)
+	}
+
+	logKIS("✓ GetPresentBalance: Available Cash: $%s", pResp.Output.OvrsOrdPsblAmt)
+	return &pResp, nil
+}

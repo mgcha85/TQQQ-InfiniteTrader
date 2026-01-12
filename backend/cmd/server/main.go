@@ -46,6 +46,15 @@ func main() {
 		log.Printf("[STARTUP] ✓ API connection successful!")
 		log.Printf("[STARTUP] Account: %s", cfg.KisAccountNum)
 		log.Println("[STARTUP] ----------------------------------------")
+
+		// Cash balance inquiry
+		cashBalance, cashErr := client.GetPresentBalance()
+		if cashErr != nil {
+			log.Printf("[STARTUP] Cash Balance: (조회 실패: %v)", cashErr)
+		} else {
+			log.Printf("[STARTUP] 💵 Available Cash: $%s", cashBalance.Output.OvrsOrdPsblAmt)
+		}
+
 		log.Printf("[STARTUP] Total Invested: $%s", balance.Output2.TotalPurchase)
 		log.Printf("[STARTUP] Total Evaluation: $%s", balance.Output2.TotalAmt)
 		log.Printf("[STARTUP] Total P/L: $%s (%s%%)", balance.Output2.TotalPL, balance.Output2.TotalPLRate)
