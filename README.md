@@ -403,9 +403,3 @@ docker-compose restart frontend nginx
 ## 라이선스
 
 이 프로젝트는 개인적인 학습 및 투자 목적으로만 사용하세요.
-
----
-
-## 문의
-
-문제가 발생하면 GitHub Issues를 통해 제보해주세요.
