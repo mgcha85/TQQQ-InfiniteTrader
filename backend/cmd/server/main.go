@@ -36,6 +36,24 @@ func main() {
 	scheduler := worker.NewScheduler(strat)
 	scheduler.Start()
 
+	// 7. Startup Balance Check (for debugging via docker logs)
+	log.Println("========================================")
+	log.Println("[STARTUP] Checking KIS API connection...")
+	balance, err := client.GetBalance()
+	if err != nil {
+		log.Printf("[STARTUP] ✗ Balance check failed: %v", err)
+	} else {
+		log.Printf("[STARTUP] ✓ API connection successful!")
+		log.Printf("[STARTUP] Account: %s", cfg.KisAccountNum)
+		log.Printf("[STARTUP] Holdings: %d", len(balance.Output1))
+		for i, h := range balance.Output1 {
+			log.Printf("[STARTUP]   [%d] %s:%s - Qty: %s, AvgPrice: %s, CurrentPrice: %s",
+				i+1, h.ExchCode, h.Symbol, h.Qty, h.AvgPrice, h.NowPrice)
+		}
+		log.Printf("[STARTUP] Total Evaluation: $%s", balance.Output2.TotalAmt)
+	}
+	log.Println("========================================")
+
 	r := gin.Default()
 
 	// API Group

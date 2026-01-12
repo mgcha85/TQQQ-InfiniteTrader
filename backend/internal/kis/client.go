@@ -348,6 +348,7 @@ type BalanceResponse struct {
 		Symbol   string `json:"ovrs_pdno"`
 		Qty      string `json:"ovrs_cblc_qty"` // Holding Qty
 		AvgPrice string `json:"pchs_avg_pric"` // Avg Purchase Price
+		NowPrice string `json:"now_pric2"`     // Current Price
 	} `json:"output1"`
 	Output2 struct {
 		TotalAmt string `json:"tot_evlu_pfls_amt"` // Total Profit/Loss
