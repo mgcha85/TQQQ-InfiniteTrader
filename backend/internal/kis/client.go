@@ -171,7 +171,7 @@ type PriceResponse struct {
 
 // getAccountParts splits account number into CANO (8 digits) and ACNT_PRDT_CD (2 digits)
 func (c *Client) getAccountParts() (string, string) {
-	acc := c.Config.KisAccountNum
+	acc := strings.TrimSpace(c.Config.KisAccountNum)
 	if len(acc) == 8 {
 		return acc, "01" // Default to 01 if only CANO is provided
 	}
