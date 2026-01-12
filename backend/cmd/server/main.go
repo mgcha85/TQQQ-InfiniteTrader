@@ -45,12 +45,17 @@ func main() {
 	} else {
 		log.Printf("[STARTUP] ✓ API connection successful!")
 		log.Printf("[STARTUP] Account: %s", cfg.KisAccountNum)
+		log.Println("[STARTUP] ----------------------------------------")
+		log.Printf("[STARTUP] Total Invested: $%s", balance.Output2.TotalPurchase)
+		log.Printf("[STARTUP] Total Evaluation: $%s", balance.Output2.TotalAmt)
+		log.Printf("[STARTUP] Total P/L: $%s (%s%%)", balance.Output2.TotalPL, balance.Output2.TotalPLRate)
+		log.Printf("[STARTUP] Realized P/L: $%s", balance.Output2.RealizedPL)
+		log.Println("[STARTUP] ----------------------------------------")
 		log.Printf("[STARTUP] Holdings: %d", len(balance.Output1))
 		for i, h := range balance.Output1 {
-			log.Printf("[STARTUP]   [%d] %s:%s - Qty: %s, AvgPrice: %s, CurrentPrice: %s",
+			log.Printf("[STARTUP]   [%d] %s:%s - Qty: %s, AvgPrice: $%s, Now: $%s",
 				i+1, h.ExchCode, h.Symbol, h.Qty, h.AvgPrice, h.NowPrice)
 		}
-		log.Printf("[STARTUP] Total Evaluation: $%s", balance.Output2.TotalAmt)
 	}
 	log.Println("========================================")
 

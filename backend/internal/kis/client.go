@@ -351,7 +351,11 @@ type BalanceResponse struct {
 		NowPrice string `json:"now_pric2"`     // Current Price
 	} `json:"output1"`
 	Output2 struct {
-		TotalAmt string `json:"tot_evlu_pfls_amt"` // Total Profit/Loss
+		TotalAmt      string `json:"tot_evlu_pfls_amt"`  // Total Evaluation Amount
+		TotalPurchase string `json:"frcr_pchs_amt1"`     // Total Purchase Amount (invested)
+		TotalPL       string `json:"ovrs_tot_pfls"`      // Total Profit/Loss
+		TotalPLRate   string `json:"tot_pftrt"`          // Total P/L Rate (%)
+		RealizedPL    string `json:"ovrs_rlzt_pfls_amt"` // Realized P/L
 	} `json:"output2"`
 	RtCd string `json:"rt_cd"`
 	Msg1 string `json:"msg1"`
