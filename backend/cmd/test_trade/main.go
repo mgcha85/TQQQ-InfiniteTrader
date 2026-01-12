@@ -86,10 +86,19 @@ func main() {
 	// 3. KIS Client
 	client := kis.NewClient(cfg)
 
-	// 4. Strategy
+	// 4. Test Buying Power API
+	log.Println("Testing GetBuyingPower API...")
+	bp, bpErr := client.GetBuyingPower()
+	if bpErr != nil {
+		log.Printf("✗ GetBuyingPower failed: %v", bpErr)
+	} else {
+		log.Printf("✓ Available Cash: $%s", bp.Output.OvrsOrdPsblAmt)
+	}
+
+	// 5. Strategy
 	strat := service.NewStrategy(db, client)
 
-	// 5. Execute
+	// 6. Execute
 	log.Println("Triggering ExecuteDaily()...")
 	strat.ExecuteDaily()
 

@@ -48,7 +48,7 @@ func main() {
 		log.Println("[STARTUP] ----------------------------------------")
 
 		// Cash balance inquiry
-		cashBalance, cashErr := client.GetPresentBalance()
+		cashBalance, cashErr := client.GetBuyingPower()
 		if cashErr != nil {
 			log.Printf("[STARTUP] Cash Balance: (조회 실패: %v)", cashErr)
 		} else {
