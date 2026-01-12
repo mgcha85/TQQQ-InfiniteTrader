@@ -397,9 +397,3 @@ docker exec tqqq-backend env | grep KIS
 # 프론트엔드 재시작
 docker-compose restart frontend nginx
 ```
-
----
-
-## 라이선스
-
-이 프로젝트는 개인적인 학습 및 투자 목적으로만 사용하세요.
