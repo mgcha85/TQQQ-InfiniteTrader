@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/config"
@@ -104,12 +105,28 @@ func main() {
 		log.Printf("✗ Failed to catch error (returned nil)")
 	}
 
-	// 6. Strategy
+	// 6. Update Settings with Real Principal
+	if bpErr == nil {
+		totalCash, _ := strconv.ParseFloat(bp.Output.OvrsOrdPsblAmt, 64)
+		// Assume we want to use available cash as Principal for this test
+		// Principal = Cash + Invested (but for now let's just use Cash as if starting fresh or keep existing logic)
+		// Better: Set Principal to a value that makes 1/40 split possible.
+		// If cash is $15,000, 1/40 is $375.
+
+		log.Printf("Updating Settings: Principal=$%.2f, SplitCount=40 (1/40 = $%.2f)", totalCash, totalCash/40.0)
+
+		// Update DB
+		db.Exec("UPDATE user_settings SET principal = ?, split_count = 40, is_active = 1 WHERE id = 1", totalCash)
+	}
+
+	// 7. Strategy
 	strat := service.NewStrategy(db, client)
 
-	// 6. Execute
+	// 8. Execute
 	log.Println("Triggering ExecuteDaily()...")
 	strat.ExecuteDaily()
+
+	log.Println("=== TEST FINISHED ===")
 
 	log.Println("=== TEST FINISHED ===")
 }
