@@ -39,8 +39,12 @@ func (s *Strategy) SyncState() error {
 
 	logWithTime("[SYNC] Received %d holdings from KIS", len(bal.Output1))
 
-	// For each holding, update CycleStatus
+	// Track active symbols to find sold ones later
+	activeSymbols := make(map[string]bool)
+
+	// 1. Update Existing / Create New Holdings from KIS
 	for _, holding := range bal.Output1 {
+		activeSymbols[holding.Symbol] = true
 		qty, _ := strconv.Atoi(holding.Qty)
 		avgPrice, _ := strconv.ParseFloat(holding.AvgPrice, 64)
 
@@ -48,9 +52,7 @@ func (s *Strategy) SyncState() error {
 		res := s.DB.Where("symbol = ?", holding.Symbol).First(&cycle)
 
 		if res.Error == gorm.ErrRecordNotFound {
-			cycle = model.CycleStatus{
-				Symbol: holding.Symbol,
-			}
+			cycle = model.CycleStatus{Symbol: holding.Symbol}
 			logWithTime("[SYNC] Creating new CycleStatus for %s", holding.Symbol)
 		}
 
@@ -59,7 +61,7 @@ func (s *Strategy) SyncState() error {
 		cycle.AvgPrice = avgPrice
 		cycle.TotalInvested = float64(qty) * avgPrice
 
-		// Logic to reset day if 0
+		// Logic to reset day if 0 (shouldn't happen here usually if KIS returns it)
 		if qty == 0 {
 			cycle.CurrentCycleDay = 0
 		}
@@ -67,6 +69,46 @@ func (s *Strategy) SyncState() error {
 		s.DB.Save(&cycle)
 		logWithTime("[SYNC] Updated %s: Qty=%d, AvgPrice=$%.2f, TotalInvested=$%.2f",
 			holding.Symbol, qty, avgPrice, cycle.TotalInvested)
+	}
+
+	// 2. Check for Sold Holdings (In DB but not in KIS)
+	var allCycles []model.CycleStatus
+	s.DB.Find(&allCycles)
+
+	for _, cycle := range allCycles {
+		if !activeSymbols[cycle.Symbol] {
+			// Cycle exists in DB but not in KIS -> Sold completely OR data missing
+			if cycle.TotalBoughtQty > 0 {
+				logWithTime("[SYNC] ⚠ Detected SOLD position: %s (Qty: %d -> 0)", cycle.Symbol, cycle.TotalBoughtQty)
+
+				// Reset Cycle
+				cycle.TotalBoughtQty = 0
+				cycle.CurrentCycleDay = 0
+				cycle.AvgPrice = 0
+				cycle.TotalInvested = 0
+				s.DB.Save(&cycle)
+				logWithTime("[SYNC] Cycle for %s reset.", cycle.Symbol)
+
+				// 3. Auto-Update Principal
+				logWithTime("[SYNC] Cycle reset detected! Updating Principal from Buying Power...")
+				bp, bpErr := s.Client.GetBuyingPower()
+				if bpErr == nil {
+					newPrincipal, _ := strconv.ParseFloat(bp.Output.OvrsOrdPsblAmt, 64)
+					if newPrincipal > 0 {
+						s.DB.Exec("UPDATE user_settings SET principal = ? WHERE id = 1", newPrincipal)
+						logWithTime("[SYNC] ✓ Principal Auto-Updated to: $%.2f", newPrincipal)
+					}
+				} else {
+					logWithTime("[SYNC] ✗ Failed to fetch Buying Power for update: %v", bpErr)
+				}
+			} else {
+				// Already 0, double check consistency
+				if cycle.TotalBoughtQty != 0 {
+					cycle.TotalBoughtQty = 0
+					s.DB.Save(&cycle)
+				}
+			}
+		}
 	}
 
 	logWithTime("[SYNC] ✓ Portfolio sync completed")
