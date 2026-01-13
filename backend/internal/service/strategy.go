@@ -164,7 +164,7 @@ func (s *Strategy) processSymbol(sym string, settings model.UserSettings) {
 	// We use price * 1.05 to ensure fill for now, or just Limit at Price
 	logWithTime("[%s] Placing BUY order: %d shares at $%.2f (Limit)...", sym, buyQty, price)
 	buyErr := s.Client.PlaceOrder(kis.OrderReq{
-		ExchCode: "NAS",
+		ExchCode: "NASD",
 		Symbol:   sym,
 		Qty:      buyQty,
 		Price:    price, // Use current price
@@ -222,7 +222,7 @@ func (s *Strategy) processSymbol(sym string, settings model.UserSettings) {
 
 		logWithTime("[%s] Placing SELL order: %d shares at $%.2f (Limit)...", sym, totalQty, targetPrice)
 		sellErr := s.Client.PlaceOrder(kis.OrderReq{
-			ExchCode: "NAS",
+			ExchCode: "NASD",
 			Symbol:   sym,
 			Qty:      totalQty,
 			Price:    targetPrice,

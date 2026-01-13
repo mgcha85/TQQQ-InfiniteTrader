@@ -95,7 +95,16 @@ func main() {
 		log.Printf("✓ Available Cash: $%s", bp.Output.OvrsOrdPsblAmt)
 	}
 
-	// 5. Strategy
+	// 5. Test Order Error Handling
+	log.Println("Testing PlaceOrder Error Handling (0 qty)...")
+	errReq := kis.OrderReq{ExchCode: "NASD", Symbol: "TQQQ", OrdType: "00", Side: "BUY", Qty: 0, Price: 50.0}
+	if err := client.PlaceOrder(errReq); err != nil {
+		log.Printf("✓ Correctly caught error: %v", err)
+	} else {
+		log.Printf("✗ Failed to catch error (returned nil)")
+	}
+
+	// 6. Strategy
 	strat := service.NewStrategy(db, client)
 
 	// 6. Execute

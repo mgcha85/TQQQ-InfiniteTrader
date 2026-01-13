@@ -349,6 +349,7 @@ func (c *Client) PlaceOrder(o OrderReq) error {
 				orderResp.Output.ODNO, orderResp.Output.ORD_TMD, orderResp.Msg1)
 		} else {
 			logKIS("⚠ PlaceOrder: Response Code: %s, Msg: %s", orderResp.RtCd, orderResp.Msg1)
+			return fmt.Errorf("api error: %s (Code: %s)", orderResp.Msg1, orderResp.RtCd)
 		}
 	} else {
 		logKIS("✓ PlaceOrder: Completed (raw response: %s)", string(bodyBytes))
