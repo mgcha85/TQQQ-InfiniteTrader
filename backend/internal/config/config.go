@@ -10,6 +10,7 @@ type Config struct {
 	KisAppSecret  string
 	KisAccountNum string
 	KisBaseURL    string // Real: https://openapi.koreainvestment.com:9443, Virtual: https://openapivts.koreainvestment.com:29443
+	ScheduleTime  string // HH:MM (Time in ET to execute daily strategy)
 }
 
 func Load() *Config {
@@ -18,6 +19,7 @@ func Load() *Config {
 		KisAppSecret:  getEnv("KIS_APP_SECRET", ""),
 		KisAccountNum: getEnv("KIS_ACCOUNT_NUM", ""),
 		KisBaseURL:    getEnv("KIS_BASE_URL", "https://openapi.koreainvestment.com:9443"),
+		ScheduleTime:  getEnv("SCHEDULE_TIME", "15:50"),
 	}
 }
 

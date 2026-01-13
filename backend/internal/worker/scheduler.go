@@ -1,7 +1,9 @@
 package worker
 
 import (
+	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/service"
@@ -34,10 +36,21 @@ func (s *Scheduler) Start() {
 	log.Println("========================================")
 
 	// US Market Close: 16:00 ET
-	// LOC orders should be placed before close (e.g., 15:50 ET)
-	// Schedule: Mon-Fri 15:50 ET
+	// LOC orders should be placed before close (configurable via SCHEDULE_TIME)
+	// Schedule: Mon-Fri <ScheduleTime> ET
+	scheduleTime := s.Strat.Client.Config.ScheduleTime
+	parts := strings.Split(scheduleTime, ":")
+	if len(parts) != 2 {
+		log.Printf("[SCHEDULER] ⚠ Invalid SCHEDULE_TIME format (%s), defaulting to 15:50", scheduleTime)
+		parts = []string{"15", "50"}
+	}
+	hour := parts[0]
+	min := parts[1]
+	cronSpec := fmt.Sprintf("%s %s * * 1-5", min, hour)
 
-	entryID, err := s.Cron.AddFunc("50 15 * * 1-5", func() {
+	log.Printf("[SCHEDULER] Schedule registered: %s ET (Cron: %s)", scheduleTime, cronSpec)
+
+	entryID, err := s.Cron.AddFunc(cronSpec, func() {
 		execTime := time.Now().In(s.Location)
 		log.Println("========================================")
 		log.Printf("[STRATEGY] ▶ Starting Daily Strategy Execution at %s", execTime.Format("2006-01-02 15:04:05 MST"))

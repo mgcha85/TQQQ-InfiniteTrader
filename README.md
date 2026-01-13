@@ -116,6 +116,7 @@ docker-compose up -d --build
 | `KIS_APP_SECRET` | KIS API 시크릿 키 | ✅ 필수 |
 | `KIS_ACCOUNT_NUM` | 계좌번호 (하이픈 제외) | ✅ 필수 |
 | `KIS_BASE_URL` | API 베이스 URL | ✅ 필수 |
+| `SCHEDULE_TIME` | 전략 실행 시간 (ET, 기본 15:50) | ❌ 선택 |
 
 > **주의**: 모의투자와 실전투자의 Base URL이 다릅니다. 반드시 확인하세요!
 
