@@ -78,6 +78,11 @@ func (s *Strategy) ExecuteDaily() {
 	logWithTime("[EXECUTE] ========================================")
 	logWithTime("[EXECUTE] Starting ExecuteDaily...")
 
+	// 0. Force Refresh Token to avoid expiration issues during execution
+	if err := s.Client.ForceRefresh(); err != nil {
+		logWithTime("[EXECUTE] ⚠ Failed to refresh token: %v (trying to proceed anyway)", err)
+	}
+
 	// 1. Load Settings
 	var settings model.UserSettings
 	if err := s.DB.First(&settings).Error; err != nil {

@@ -45,6 +45,15 @@ type AuthResponse struct {
 
 const TokenFile = "kis_token.json"
 
+// ForceRefresh unconditionally gets a new token
+func (c *Client) ForceRefresh() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	logKIS("ForceRefresh: Requesting new token...")
+	return c.issueToken()
+}
+
 func (c *Client) EnsureToken() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -69,7 +78,14 @@ func (c *Client) EnsureToken() error {
 		}
 	}
 
-	logKIS("Token expired or not set, requesting new token...")
+	// 3. Issue new token
+	return c.issueToken()
+}
+
+// issueToken performs the actual API call to get a new token
+// It assumes the caller holds the lock
+func (c *Client) issueToken() error {
+	logKIS("Requesting new token from API...")
 
 	url := fmt.Sprintf("%s/oauth2/tokenP", c.Config.KisBaseURL)
 	body := map[string]string{
