@@ -49,9 +49,9 @@ func (s *Strategy) CalculateRebalancePlan() (*RebalancePlan, error) {
 	}
 	exchCodes := map[string]string{
 		"TQQQ": "NAS",
-		"PFIX": "NYS",
-		"SCHD": "NYS",
-		"TMF":  "NYS",
+		"PFIX": "AMS",
+		"SCHD": "AMS",
+		"TMF":  "AMS",
 	}
 
 	// 2. Fetch Portfolio State
