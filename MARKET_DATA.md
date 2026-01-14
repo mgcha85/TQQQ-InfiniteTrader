@@ -57,3 +57,4 @@ To backfill yesterday's data every day at 02:00 AM, add this to your crontab:
 
 - **429 Rate Limit**: The service automatically sleeps (300ms) between day loops, but Alpaca Free Tier has a limit (200/min). If you hit limits, try smaller ranges or increase the sleep duration in `service.go`.
 - **Missing Data**: Free Tier uses IEX feed. Some low-volume symbols might have gaps.
+
