@@ -73,12 +73,18 @@ export interface RebalancePlan {
 
 export async function fetchRebalancePreview() {
     const res = await fetch('/api/rebalance/preview');
-    if (!res.ok) throw new Error('Failed to fetch rebalance plan');
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to fetch rebalance plan' }));
+        throw new Error(err.error || 'Failed to fetch rebalance plan');
+    }
     return await res.json();
 }
 
 export async function executeRebalance(dryRun: boolean = true) {
     const res = await fetch(`/api/rebalance/execute?dry_run=${dryRun}`, { method: 'POST' });
-    if (!res.ok) throw new Error('Failed to execute rebalance');
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to execute rebalance' }));
+        throw new Error(err.error || 'Failed to execute rebalance');
+    }
     return await res.json();
 }
