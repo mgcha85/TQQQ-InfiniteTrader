@@ -21,7 +21,7 @@ RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o server ./cmd/server
 # ============================================
 # Stage 2: Production Runtime (minimal)
 # ============================================
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 # Install minimal runtime dependencies
 RUN apt-get update && apt-get install -y ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
