@@ -44,3 +44,41 @@ export async function triggerSync() {
     if (!res.ok) throw new Error('Sync failed');
     return await res.json();
 }
+
+export interface RebalanceItem {
+    symbol: string;
+    current_qty: number;
+    current_price: number;
+    current_val: number;
+    current_wt: number;
+    target_wt: number;
+    target_val: number;
+    target_qty: number;
+    action: string;
+    action_qty: number;
+    ma_130: number;
+    ma_130_prev: number;
+    cond_price_under_ma: boolean;
+    cond_ma_down: boolean;
+    kill_switch: boolean;
+}
+
+export interface RebalancePlan {
+    total_value: number;
+    cash: number;
+    items: RebalanceItem[];
+    estimated_tax: number;
+    action_summary: string;
+}
+
+export async function fetchRebalancePreview() {
+    const res = await fetch('/api/rebalance/preview');
+    if (!res.ok) throw new Error('Failed to fetch rebalance plan');
+    return await res.json();
+}
+
+export async function executeRebalance(dryRun: boolean = true) {
+    const res = await fetch(`/api/rebalance/execute?dry_run=${dryRun}`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to execute rebalance');
+    return await res.json();
+}

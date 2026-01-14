@@ -35,9 +35,8 @@ func (s *Scheduler) Start() {
 	log.Printf("[SCHEDULER] Current Time (Local): %s", time.Now().Format("2006-01-02 15:04:05 MST"))
 	log.Println("========================================")
 
-	// US Market Close: 16:00 ET
-	// LOC orders should be placed before close (configurable via SCHEDULE_TIME)
-	// Schedule: Mon-Fri <ScheduleTime> ET
+	// Monthly Rebalancing Schedule: 26th of every month
+	// Time: Configured via SCHEDULE_TIME (default 15:50 ET)
 	scheduleTime := s.Strat.Client.Config.ScheduleTime
 	parts := strings.Split(scheduleTime, ":")
 	if len(parts) != 2 {
@@ -46,21 +45,24 @@ func (s *Scheduler) Start() {
 	}
 	hour := parts[0]
 	min := parts[1]
-	cronSpec := fmt.Sprintf("%s %s * * 1-5", min, hour)
+	// Cron: Min Hour Dom Month Dow
+	cronSpec := fmt.Sprintf("%s %s 26 * *", min, hour)
 
-	log.Printf("[SCHEDULER] Schedule registered: %s ET (Cron: %s)", scheduleTime, cronSpec)
+	log.Printf("[SCHEDULER] Schedule registered: %s ET on 26th (Cron: %s)", scheduleTime, cronSpec)
 
 	entryID, err := s.Cron.AddFunc(cronSpec, func() {
 		execTime := time.Now().In(s.Location)
 		log.Println("========================================")
-		log.Printf("[STRATEGY] ▶ Starting Daily Strategy Execution at %s", execTime.Format("2006-01-02 15:04:05 MST"))
+		log.Printf("[STRATEGY] ▶ Starting Monthly Rebalance Execution at %s", execTime.Format("2006-01-02 15:04:05 MST"))
 		log.Println("========================================")
 
-		s.Strat.ExecuteDaily()
+		if err := s.Strat.ExecuteRebalance(false); err != nil {
+			log.Printf("[STRATEGY] ✗ Rebalance Execution Failed: %v", err)
+		}
 
 		endTime := time.Now().In(s.Location)
 		log.Println("========================================")
-		log.Printf("[STRATEGY] ✓ Daily Strategy Execution Completed at %s (Duration: %v)", endTime.Format("2006-01-02 15:04:05 MST"), endTime.Sub(execTime))
+		log.Printf("[STRATEGY] ✓ Monthly Rebalance Execution Completed at %s (Duration: %v)", endTime.Format("2006-01-02 15:04:05 MST"), endTime.Sub(execTime))
 		log.Println("========================================")
 	})
 	if err != nil {

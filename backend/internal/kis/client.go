@@ -258,6 +258,104 @@ func (c *Client) GetCurrentPrice(exchCode, symbol string) (float64, error) {
 	return price, nil
 }
 
+// DailyPriceResponse for history
+type DailyPriceResponse struct {
+	Output2 []struct {
+		Date  string `json:"xymd"` // YYYYMMDD
+		Close string `json:"clos"` // Close Price
+	} `json:"output2"`
+	RtCd string `json:"rt_cd"`
+	Msg1 string `json:"msg1"`
+}
+
+// DailyPriceItem simplified struct for return
+type DailyPriceItem struct {
+	Date  string
+	Close float64
+}
+
+// GetDailyPrice fetches at least n days of history
+func (c *Client) GetDailyPrice(exchCode, symbol string, days int) ([]DailyPriceItem, error) {
+	logKIS("GetDailyPrice: Fetching last %d days for %s:%s", days, exchCode, symbol)
+
+	if err := c.EnsureToken(); err != nil {
+		return nil, err
+	}
+
+	var allPrices []DailyPriceItem
+	nextDate := "" // Empty for latest
+
+	for len(allPrices) < days {
+		// API limit per call is usually 100
+		url := fmt.Sprintf("%s/uapi/overseas-price/v1/quotations/dailyprice?AUTH=&EXCD=%s&SYMB=%s&GUBN=0&BYMD=%s&MODP=1",
+			c.Config.KisBaseURL, exchCode, symbol, nextDate)
+		logKIS("GET %s (Collected: %d/%d)", url, len(allPrices), days)
+
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		req.Header.Set("content-type", "application/json")
+		req.Header.Set("authorization", "Bearer "+c.AccessToken)
+		req.Header.Set("appkey", c.Config.KisAppKey)
+		req.Header.Set("appsecret", c.Config.KisAppSecret)
+		req.Header.Set("tr_id", "HHDFS76240000") // Overseas Daily Price
+
+		resp, err := c.Client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != 200 {
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			logKIS("✗ GetDailyPrice: Bad status %d: %s", resp.StatusCode, string(bodyBytes))
+			return nil, fmt.Errorf("daily price failed status: %d", resp.StatusCode)
+		}
+
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		var dpResp DailyPriceResponse
+		if err := json.Unmarshal(bodyBytes, &dpResp); err != nil {
+			return nil, err
+		}
+
+		if dpResp.RtCd != "0" && dpResp.RtCd != "0000" {
+			logKIS("✗ GetDailyPrice: API error: %s", dpResp.Msg1)
+			return nil, fmt.Errorf("api error: %s", dpResp.Msg1)
+		}
+
+		if len(dpResp.Output2) == 0 {
+			break // No more data
+		}
+
+		for _, item := range dpResp.Output2 {
+			var closePrice float64
+			fmt.Sscanf(item.Close, "%f", &closePrice)
+			allPrices = append(allPrices, DailyPriceItem{
+				Date:  item.Date,
+				Close: closePrice,
+			})
+		}
+
+		// Prepare next cursor (oldest date)
+		oldest := dpResp.Output2[len(dpResp.Output2)-1].Date
+		if oldest == nextDate {
+			break // Infinite loop protection
+		}
+		nextDate = oldest
+
+		// Small delay to be polite
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	logKIS("✓ GetDailyPrice: Collected %d records", len(allPrices))
+	if len(allPrices) > days {
+		allPrices = allPrices[:days]
+	}
+	return allPrices, nil
+}
+
 // Order Request
 type OrderReq struct {
 	ExchCode string // NAS, NYS, AMS

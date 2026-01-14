@@ -76,7 +76,12 @@ func main() {
 		v1.GET("/dashboard", handler.GetDashboard)
 		v1.GET("/settings", handler.GetSettings)
 		v1.POST("/settings", handler.UpdateSettings)
+
 		v1.POST("/sync", handler.TriggerSync)
+
+		// Rebalance API
+		v1.GET("/rebalance/preview", handler.GetRebalancePreview)
+		v1.POST("/rebalance/execute", handler.ExecuteRebalance)
 	}
 
 	port := os.Getenv("PORT")

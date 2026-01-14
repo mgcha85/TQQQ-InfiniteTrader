@@ -79,3 +79,25 @@ func (h *Handler) TriggerSync(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "synced"})
 }
+
+// GetRebalancePreview
+func (h *Handler) GetRebalancePreview(c *gin.Context) {
+	plan, err := h.Strategy.CalculateRebalancePlan()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, plan)
+}
+
+// ExecuteRebalance
+func (h *Handler) ExecuteRebalance(c *gin.Context) {
+	// Optional dry_run param
+	dryRun := c.Query("dry_run") == "true"
+
+	if err := h.Strategy.ExecuteRebalance(dryRun); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "executed", "dry_run": dryRun})
+}

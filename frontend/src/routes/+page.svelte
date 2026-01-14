@@ -1,159 +1,173 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { fetchDashboard, triggerSync, type CycleStatus } from "$lib/api";
-    import { Card, Button, Spinner } from "flowbite-svelte";
+    import { fetchRebalancePreview, executeRebalance, type RebalancePlan } from "$lib/api";
+    import { Spinner, Badge, Button, Table, TableBody, TableBodyCell, TableBodyRow, TableHead, TableHeadCell } from "flowbite-svelte";
 
-    let cycles: CycleStatus[] = $state([]);
+    let plan: RebalancePlan | null = $state(null);
     let loading = $state(true);
-    let syncing = $state(false);
+    let executing = $state(false);
+    let errorMsg = $state("");
+    let lastUpdated = $state("");
 
-    async function load() {
+    async function loadPreview() {
         loading = true;
+        errorMsg = "";
         try {
-            const data = await fetchDashboard();
-            cycles = data.cycles || [];
-        } catch (e) {
-            console.error(e);
+            plan = await fetchRebalancePreview();
+            lastUpdated = new Date().toLocaleTimeString();
+        } catch (e: any) {
+            errorMsg = e.message;
         } finally {
             loading = false;
         }
     }
 
-    async function handleSync() {
-        syncing = true;
+    async function handleExecute(dryRun: boolean) {
+        if (!confirm(dryRun ? "Run simulation (Dry Run)?" : "WARNING: Execute REAL TRADES?")) return;
+        
+        executing = true;
         try {
-            await triggerSync();
-            await load();
-        } catch (e) {
-            alert("Sync failed");
+            await executeRebalance(dryRun);
+            alert(dryRun ? "Dry Run Completed. Check logs." : "Rebalance Executed Successfully!");
+            await loadPreview(); // Refresh
+        } catch (e: any) {
+            alert("Execution failed: " + e.message);
         } finally {
-            syncing = false;
+            executing = false;
         }
     }
 
     onMount(() => {
-        load();
+        loadPreview();
     });
 </script>
 
-<div class="p-8">
+<div class="p-8 max-w-7xl mx-auto">
+    <!-- Header -->
     <div class="flex justify-between items-center mb-8">
         <div>
-            <h1 class="text-4xl font-bold text-white mb-2">Dashboard</h1>
-            <p class="text-slate-400">
-                Monitor your infinite buying strategy cycles
-            </p>
+            <h1 class="text-3xl font-bold text-white mb-2">Portfolio Rebalance (V2)</h1>
+            <p class="text-slate-400">Monthly Strategy: TQQQ, PFIX, SCHD, TMF with MA130 Logic</p>
         </div>
-        <button onclick={handleSync} disabled={syncing} class="btn-primary">
-            {#if syncing}
-                <Spinner size="4" class="mr-2" /> Syncing...
-            {:else}
-                <svg
-                    class="w-5 h-5 mr-2 inline-block"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                >
-                    <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                    />
-                </svg>
-                Sync Now
-            {/if}
-        </button>
+        <div class="flex gap-3">
+             <Button color="light" onclick={loadPreview} disabled={loading || executing}>
+                {#if loading} <Spinner size="4" class="mr-2"/> {/if}
+                Refresh Preview
+            </Button>
+            <Button color="purple" onclick={() => handleExecute(true)} disabled={loading || executing}>
+                Simulate (Dry Run)
+            </Button>
+             <Button color="red" onclick={() => handleExecute(false)} disabled={loading || executing}>
+                Execute Trades
+            </Button>
+        </div>
     </div>
 
+    {#if errorMsg}
+        <div class="p-4 mb-4 text-red-500 bg-red-100 rounded-lg">{errorMsg}</div>
+    {/if}
+
+    {#if plan}
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="stat-card bg-slate-800 p-6 rounded-lg shadow-lg">
+                <div class="text-slate-400 text-sm">Total Equity</div>
+                <div class="text-3xl font-bold text-white">${plan.total_value.toFixed(2)}</div>
+            </div>
+            <div class="stat-card bg-slate-800 p-6 rounded-lg shadow-lg">
+                <div class="text-slate-400 text-sm">Available Cash</div>
+                <div class="text-3xl font-bold text-green-400">${plan.cash.toFixed(2)}</div>
+            </div>
+            <div class="stat-card bg-slate-800 p-6 rounded-lg shadow-lg border border-red-900/30">
+                <div class="text-slate-400 text-sm">Est. Tax Impact</div>
+                <div class="text-3xl font-bold text-red-400">${plan.estimated_tax.toFixed(2)}</div>
+            </div>
+        </div>
+
+        <!-- Main Table -->
+        <div class="bg-slate-800 rounded-lg shadow-lg overflow-hidden">
+            <Table hoverable={true}>
+                <TableHead>
+                    <TableHeadCell>Symbol</TableHeadCell>
+                    <TableHeadCell>Price / MA130</TableHeadCell>
+                    <TableHeadCell>Conditions</TableHeadCell>
+                    <TableHeadCell>Weight (Target)</TableHeadCell>
+                    <TableHeadCell>Value (Target)</TableHeadCell>
+                    <TableHeadCell>Action</TableHeadCell>
+                </TableHead>
+                <TableBody>
+                    {#each plan.items as item}
+                        <TableBodyRow class="border-b border-slate-700">
+                            <TableBodyCell class="font-bold text-lg text-blue-400">
+                                {item.symbol}
+                                {#if item.kill_switch}
+                                    <Badge color="red" class="ml-2">KILL</Badge>
+                                {/if}
+                            </TableBodyCell>
+                            
+                            <TableBodyCell>
+                                <div class="text-white">${item.current_price.toFixed(2)}</div>
+                                <div class="text-xs text-slate-400">MA130: ${item.ma_130.toFixed(2)}</div>
+                            </TableBodyCell>
+
+                            <TableBodyCell>
+                                <div class="flex gap-2">
+                                    {#if item.cond_price_under_ma}
+                                        <Badge color="yellow">Price &lt; MA</Badge>
+                                    {:else}
+                                        <Badge color="green">Price &gt; MA</Badge>
+                                    {/if}
+                                    {#if item.cond_ma_down}
+                                        <Badge color="red">MA &darr;</Badge>
+                                    {:else}
+                                        <Badge color="green">MA &uarr;</Badge>
+                                    {/if}
+                                </div>
+                            </TableBodyCell>
+
+                            <TableBodyCell>
+                                <div class="text-white font-mono">
+                                    {(item.target_wt * 100).toFixed(1)}%
+                                </div>
+                                <div class="text-xs text-slate-500">
+                                    Curr: {(item.current_wt * 100).toFixed(1)}%
+                                </div>
+                            </TableBodyCell>
+                            
+                             <TableBodyCell>
+                                <div class="text-white">
+                                    ${item.target_val.toFixed(2)}
+                                </div>
+                                 <div class="text-xs text-slate-500">
+                                    Curr: ${item.current_val.toFixed(2)}
+                                </div>
+                            </TableBodyCell>
+
+                            <TableBodyCell>
+                                {#if item.action === "BUY"}
+                                    <span class="text-green-400 font-bold">BUY {item.action_qty}</span>
+                                {:else if item.action === "SELL"}
+                                    <span class="text-red-400 font-bold">SELL {item.action_qty}</span>
+                                {:else}
+                                    <span class="text-slate-500">HOLD</span>
+                                {/if}
+                            </TableBodyCell>
+                        </TableBodyRow>
+                    {/each}
+                </TableBody>
+            </Table>
+        </div>
+        <div class="mt-4 text-right text-slate-500 text-sm">
+            Last Updated: {lastUpdated}
+        </div>
+    {:else if !loading}
+        <div class="text-center text-slate-400 mt-12">No plan data available.</div>
+    {/if}
+    
     {#if loading}
-        <div class="text-center py-12">
-            <Spinner size="12" />
-            <p class="text-slate-400 mt-4">Loading dashboard...</p>
-        </div>
-    {:else if cycles.length === 0}
-        <div class="stat-card text-center py-12">
-            <svg
-                class="w-16 h-16 mx-auto text-slate-600 mb-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-            >
-                <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                />
-            </svg>
-            <p class="text-slate-300 text-lg mb-2">No active cycles found</p>
-            <p class="text-slate-500">
-                Check Settings or click Sync to get started
-            </p>
-        </div>
-    {:else}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {#each cycles as cycle}
-                <div class="stat-card">
-                    <div class="flex justify-between items-start mb-4">
-                        <h5 class="text-2xl font-bold text-blue-400">
-                            {cycle.Symbol}
-                        </h5>
-                        <span
-                            class="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium"
-                        >
-                            Active
-                        </span>
-                    </div>
-
-                    <div class="space-y-3 text-slate-300">
-                        <div class="flex justify-between items-center">
-                            <span class="text-slate-400">Cycle Progress</span>
-                            <span class="font-semibold text-white">
-                                {cycle.CurrentCycleDay} / 40
-                            </span>
-                        </div>
-
-                        <!-- Progress Bar -->
-                        <div
-                            class="w-full bg-slate-800 rounded-full h-2 overflow-hidden"
-                        >
-                            <div
-                                class="bg-gradient-to-r from-blue-600 to-blue-400 h-2 rounded-full transition-all duration-500"
-                                style="width: {Math.min(
-                                    (cycle.CurrentCycleDay / 40) * 100,
-                                    100,
-                                )}%"
-                            ></div>
-                        </div>
-
-                        <div class="pt-2 space-y-2">
-                            <div class="flex justify-between">
-                                <span class="text-slate-400">Holdings</span>
-                                <span class="font-semibold text-white"
-                                    >{cycle.TotalBoughtQty} shares</span
-                                >
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-slate-400">Avg Price</span>
-                                <span class="font-semibold text-green-400"
-                                    >${cycle.AvgPrice.toFixed(2)}</span
-                                >
-                            </div>
-                            <div
-                                class="flex justify-between pt-2 border-t border-slate-700"
-                            >
-                                <span class="text-slate-400"
-                                    >Total Invested</span
-                                >
-                                <span class="font-bold text-xl text-white"
-                                    >${cycle.TotalInvested.toFixed(2)}</span
-                                >
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            {/each}
+        <div class="text-center mt-12">
+            <Spinner size="8" />
+            <p class="mt-4 text-slate-400">Calculating Rebalance Plan...</p>
         </div>
     {/if}
 </div>
