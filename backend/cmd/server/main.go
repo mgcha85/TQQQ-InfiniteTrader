@@ -8,6 +8,7 @@ import (
 	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/api"
 	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/config"
 	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/kis"
+	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/market"
 	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/repository"
 	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/service"
 	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/worker"
@@ -29,8 +30,16 @@ func main() {
 	// 4. Strategy
 	strat := service.NewStrategy(db, client)
 
+	// 3.1 Market Data (Alpaca + DuckDB)
+	alpacaClient := market.NewAlpacaClient(cfg)
+	marketSvc := market.NewMarketDataService(cfg, alpacaClient)
+	marketRepo, err := market.NewMarketRepository()
+	if err != nil {
+		log.Printf("⚠ MarketRepository (DuckDB) init failed: %v", err)
+	}
+
 	// 5. Handler
-	handler := api.NewHandler(db, strat)
+	handler := api.NewHandler(db, strat, marketSvc, marketRepo)
 
 	// 6. Scheduler
 	scheduler := worker.NewScheduler(strat)
@@ -82,6 +91,10 @@ func main() {
 		// Rebalance API
 		v1.GET("/rebalance/preview", handler.GetRebalancePreview)
 		v1.POST("/rebalance/execute", handler.ExecuteRebalance)
+
+		// Market Data API
+		v1.POST("/market/backfill", handler.Backfill)
+		v1.GET("/market/candles", handler.GetCandles)
 	}
 
 	port := os.Getenv("PORT")

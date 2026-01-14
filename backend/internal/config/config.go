@@ -11,6 +11,8 @@ type Config struct {
 	KisAccountNum string
 	KisBaseURL    string // Real: https://openapi.koreainvestment.com:9443, Virtual: https://openapivts.koreainvestment.com:29443
 	ScheduleTime  string // HH:MM (Time in ET to execute daily strategy)
+	AlpacaApiKey  string
+	AlpacaSecret  string
 }
 
 func Load() *Config {
@@ -20,6 +22,8 @@ func Load() *Config {
 		KisAccountNum: getEnv("KIS_ACCOUNT_NUM", ""),
 		KisBaseURL:    getEnv("KIS_BASE_URL", "https://openapi.koreainvestment.com:9443"),
 		ScheduleTime:  getEnv("SCHEDULE_TIME", "15:50"),
+		AlpacaApiKey:  getEnv("ALPACA_API_KEY", ""),
+		AlpacaSecret:  getEnv("ALPACA_SECRET_KEY", ""),
 	}
 }
 

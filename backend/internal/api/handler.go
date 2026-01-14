@@ -4,18 +4,26 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/market"
 	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/model"
 	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/repository"
 	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/service"
 )
 
 type Handler struct {
-	Repo     *repository.DB
-	Strategy *service.Strategy
+	Repo       *repository.DB
+	Strategy   *service.Strategy
+	MarketSvc  *market.MarketDataService
+	MarketRepo *market.MarketRepository
 }
 
-func NewHandler(repo *repository.DB, strat *service.Strategy) *Handler {
-	return &Handler{Repo: repo, Strategy: strat}
+func NewHandler(repo *repository.DB, strat *service.Strategy, mSvc *market.MarketDataService, mRepo *market.MarketRepository) *Handler {
+	return &Handler{
+		Repo:       repo,
+		Strategy:   strat,
+		MarketSvc:  mSvc,
+		MarketRepo: mRepo,
+	}
 }
 
 // GetDashboard returns summary data
