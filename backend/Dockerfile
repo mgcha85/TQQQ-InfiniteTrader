@@ -1,12 +1,12 @@
 # ============================================
 # Stage 1: Builder
 # ============================================
-FROM golang:1.24-alpine AS builder
+FROM golang:1.24 AS builder
 
 WORKDIR /app
 
-# Install build dependencies for CGO (SQLite)
-RUN apk add --no-cache git build-base
+# Install build dependencies
+RUN apt-get update && apt-get install -y git build-essential
 
 # Copy go mod files first for caching
 COPY go.mod go.sum ./
@@ -21,10 +21,10 @@ RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o server ./cmd/server
 # ============================================
 # Stage 2: Production Runtime (minimal)
 # ============================================
-FROM alpine:3.19
+FROM debian:bookworm-slim
 
 # Install minimal runtime dependencies
-RUN apk add --no-cache ca-certificates tzdata
+RUN apt-get update && apt-get install -y ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
 WORKDIR /app
