@@ -32,6 +32,9 @@ WORKDIR /app
 # Copy only the binary from builder
 COPY --from=builder /app/server /app/server
 
+# Copy config directory (required for symbols.json)
+COPY --from=builder /app/config /app/config
+
 # Create data directory
 RUN mkdir -p /app/data
 
