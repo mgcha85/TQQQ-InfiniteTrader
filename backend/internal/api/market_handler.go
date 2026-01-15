@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 	"time"
 
@@ -17,23 +18,25 @@ func (h *Handler) Backfill(c *gin.Context) {
 		return
 	}
 
-	// Trigger async or sync? Backfill takes time.
-	// For now, sync or goroutine?
-	// User said "Start cron job... curl". Usually sync is okay if timeout is long, but long running requests often timeout.
-	// Recommendation: Goroutine and return 202 accepted.
-	// But simple implementation: Sync (or Goroutine).
-	// Let's do Goroutine to avoid HTTP timeout.
+	// 1. Log request immediately
+	log.Printf("[API] Backfill request received: start=%s, end=%s", start, end)
 
+	// 2. Trigger async Goroutine
 	go func() {
+		log.Printf("[API] Starting Backfill Goroutine for range %s to %s...", start, end)
 		if err := h.MarketSvc.Backfill(start, end); err != nil {
-			// Log error? h.MarketSvc logs internal errors.
+			log.Printf("[API] ✗ Backfill failed: %v", err)
+		} else {
+			log.Printf("[API] ✓ Backfill completed successfully")
 		}
 	}()
 
+	// 3. Return 202
 	c.JSON(http.StatusAccepted, gin.H{
 		"status": "Backfill triggered",
 		"start":  start,
 		"end":    end,
+		"note":   "Check server logs for progress (docker logs -f tqqq-backend)",
 	})
 }
 
