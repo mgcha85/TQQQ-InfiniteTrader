@@ -33,9 +33,9 @@ func (r *MarketRepository) QueryCandles(symbol string, start, end time.Time) ([]
 	endMilli := end.UnixMilli()
 
 	query := `
-		SELECT symbol, timestamp, open, high, low, close, volume
+		SELECT symbol, epoch_ms(timestamp), open, high, low, close, volume
 		FROM read_parquet('data/market_data/resolution=1min/**/*.parquet', hive_partitioning=true)
-		WHERE symbol = ? AND timestamp >= ? AND timestamp <= ?
+		WHERE symbol = ? AND epoch_ms(timestamp) >= ? AND epoch_ms(timestamp) <= ?
 		ORDER BY timestamp ASC
 	`
 
