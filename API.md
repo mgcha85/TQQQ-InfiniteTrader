@@ -73,3 +73,48 @@ go run cmd/test_trade/main.go
 ## 4. 참고 사항
 - 이 테스트 스크립트는 실제 주문을 전송하므로, **장 운영 시간에 실행 시 실제 매수/매도가 발생**할 수 있습니다.
 - 테스트 목적으로 실행할 때는 장 운영 시간이 아닐 때 하거나, 계좌에 잔고를 비워두는 것을 권장합니다 (혹은 소액만).
+
+---
+
+## 5. 외부 데이터 제공 API (Market Data Service)
+
+이 서버는 수집한 1분봉 데이터(Alpaca Source)를 외부에서 조회할 수 있는 HTTP API를 제공합니다.
+
+### 🕯️ 분봉 조회 (Get Candles)
+
+지정된 종목의 1분봉 데이터를 조회합니다.
+
+- **URL**: `/api/market/candles`
+- **Method**: `GET`
+- **Query Parameters**:
+  - `symbol`: 종목 심볼 (예: `TQQQ`, `AAPL`)
+  - `start`: 시작 날짜 (`YYYY-MM-DD`)
+  - `end`: 종료 날짜 (`YYYY-MM-DD`)
+
+#### 요청 예시 (Curl)
+
+```bash
+# TQQQ의 2024-01-01 ~ 2024-01-31 분봉 데이터 조회
+curl "http://localhost:8082/api/market/candles?symbol=TQQQ&start=2024-01-01&end=2024-01-31" | jq
+```
+
+#### 응답 형식 (JSON)
+
+```json
+{
+  "symbol": "TQQQ",
+  "count": 5000,
+  "data": [
+    {
+      "symbol": "TQQQ",
+      "timestamp": 1704100200000,
+      "open": 50.1,
+      "high": 50.5,
+      "low": 50.0,
+      "close": 50.2,
+      "volume": 1000
+    },
+    ...
+  ]
+}
+```
