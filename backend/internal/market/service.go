@@ -27,6 +27,11 @@ func NewMarketDataService(cfg *config.Config, alpaca *AlpacaClient) *MarketDataS
 // Backfill downloads data for the given range and saves to Parquet
 // Date format: "2006-01-02"
 func (s *MarketDataService) Backfill(startDateStr, endDateStr string) error {
+	if s.Alpaca == nil {
+		log.Printf("[MARKET] ✗ Backfill aborted: Alpaca API client not initialized (Check ALPACA_API_KEY in .env)")
+		return fmt.Errorf("alpaca API client not initialized")
+	}
+
 	// 1. Load Symbols
 	symbols, err := s.loadSymbols()
 	if err != nil {
