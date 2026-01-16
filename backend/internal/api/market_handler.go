@@ -46,8 +46,16 @@ func (h *Handler) GetCandles(c *gin.Context) {
 	startStr := c.Query("start")
 	endStr := c.Query("end")
 
+	log.Printf("[API] GetCandles request: symbol=%s, start=%s, end=%s", symbol, startStr, endStr)
+
 	if symbol == "" || startStr == "" || endStr == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "symbol, start, end required"})
+		return
+	}
+
+	if h.MarketRepo == nil {
+		log.Printf("[API] ✗ GetCandles failed: MarketRepo is nil (DuckDB not initialized)")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Market data service not available"})
 		return
 	}
 
@@ -64,10 +72,12 @@ func (h *Handler) GetCandles(c *gin.Context) {
 
 	candles, err := h.MarketRepo.QueryCandles(symbol, start, end)
 	if err != nil {
+		log.Printf("[API] ✗ GetCandles query failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
+	log.Printf("[API] ✓ GetCandles success: symbol=%s, count=%d", symbol, len(candles))
 	c.JSON(http.StatusOK, gin.H{
 		"symbol": symbol,
 		"count":  len(candles),

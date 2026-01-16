@@ -118,3 +118,47 @@ curl "http://localhost:8082/api/market/candles?symbol=TQQQ&start=2024-01-01&end=
   ]
 }
 ```
+
+### 📥 데이터 백필 (Backfill)
+
+Alpaca에서 과거 데이터를 수집하여 Parquet 파일로 저장합니다.
+
+- **URL**: `/api/market/backfill`
+- **Method**: `POST`
+- **Query Parameters**:
+  - `start`: 시작 날짜 (`YYYY-MM-DD`)
+  - `end`: 종료 날짜 (`YYYY-MM-DD`)
+
+#### 요청 예시 (Curl)
+
+```bash
+# 2026-01-01부터 2026-01-15까지 데이터 수집 (백그라운드 실행)
+curl -X POST "http://localhost:8082/api/market/backfill?start=2026-01-01&end=2026-01-15"
+
+# 응답 (202 Accepted)
+{"status":"Backfill triggered","start":"2026-01-01","end":"2026-01-15","note":"Check server logs for progress"}
+```
+
+### 🛠️ 트러블슈팅
+
+1. **`Market data service not available` 오류**
+   - DuckDB 초기화 실패. 서버 로그 확인: `docker logs tqqq-backend`
+   - Parquet 파일 경로 확인: `data/market_data/resolution=1min/`에 파일이 있는지 확인
+
+2. **`count: 0` (빈 결과)**
+   - 먼저 Backfill API로 데이터를 수집했는지 확인
+   - 요청한 날짜 범위에 해당하는 데이터가 있는지 확인
+
+3. **`invalid symbol` 오류 (Backfill 시)**
+   - `BRK-A` 같은 심볼은 `BRK.A`로 표기해야 함 (Alpaca 규칙)
+   - `backend/config/symbols.json` 파일 확인
+
+### ⏰ 일일 배치 설정 (Crontab)
+
+매일 새벽 2시에 전날 데이터를 자동 수집하려면:
+
+```bash
+crontab -e
+# 아래 내용 추가
+0 2 * * * curl -X POST "http://localhost:8082/api/market/backfill?start=$(date -d 'yesterday' +\%Y-\%m-\%d)&end=$(date -d 'yesterday' +\%Y-\%m-\%d)" >> /var/log/market_backfill.log 2>&1
+```
