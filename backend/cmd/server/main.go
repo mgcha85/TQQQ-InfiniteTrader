@@ -47,7 +47,7 @@ func main() {
 	handler := api.NewHandler(db, strat, marketSvc, marketRepo)
 
 	// 6. Scheduler
-	scheduler := worker.NewScheduler(strat)
+	scheduler := worker.NewScheduler(strat, marketSvc)
 	scheduler.Start()
 
 	// 7. Startup Balance Check (for debugging via docker logs)
