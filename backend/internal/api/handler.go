@@ -109,3 +109,27 @@ func (h *Handler) ExecuteRebalance(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "executed", "dry_run": dryRun})
 }
+
+// ExecuteCustomRebalance accepts a custom plan from the frontend
+func (h *Handler) ExecuteCustomRebalance(c *gin.Context) {
+	dryRun := c.Query("dry_run") == "true"
+
+	var customPlan service.RebalancePlan
+	if err := c.ShouldBindJSON(&customPlan); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid plan format: " + err.Error()})
+		return
+	}
+
+	// Basic validation
+	if len(customPlan.Items) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Plan must contain at least one item"})
+		return
+	}
+
+	if err := h.Strategy.ExecuteCustomRebalance(&customPlan, dryRun); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "custom plan executed", "dry_run": dryRun})
+}

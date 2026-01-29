@@ -96,6 +96,7 @@ func main() {
 		// Rebalance API
 		v1.GET("/rebalance/preview", handler.GetRebalancePreview)
 		v1.POST("/rebalance/execute", handler.ExecuteRebalance)
+		v1.POST("/rebalance/execute-custom", handler.ExecuteCustomRebalance)
 
 		// Market Data API
 		v1.POST("/market/backfill", handler.Backfill)

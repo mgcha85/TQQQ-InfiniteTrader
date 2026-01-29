@@ -88,3 +88,16 @@ export async function executeRebalance(dryRun: boolean = true) {
     }
     return await res.json();
 }
+
+export async function executeCustomRebalance(plan: RebalancePlan, dryRun: boolean = true) {
+    const res = await fetch(`/api/rebalance/execute-custom?dry_run=${dryRun}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(plan)
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to execute custom plan' }));
+        throw new Error(err.error || 'Failed to execute custom plan');
+    }
+    return await res.json();
+}

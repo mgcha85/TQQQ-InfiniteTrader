@@ -310,6 +310,40 @@ func (s *Strategy) ExecuteRebalance(dryRun bool) error {
 	return nil
 }
 
+// ExecuteCustomRebalance executes a user-modified plan
+func (s *Strategy) ExecuteCustomRebalance(customPlan *RebalancePlan, dryRun bool) error {
+	logWithTime("[REBALANCE] Executing CUSTOM Plan (DryRun=%v)...", dryRun)
+	logWithTime("[REBALANCE] Total Equity: $%.2f, Items: %d", customPlan.TotalValue, len(customPlan.Items))
+
+	var sells, buys []RebalanceItem
+	for _, item := range customPlan.Items {
+		if item.Action == "SELL" {
+			sells = append(sells, item)
+		} else if item.Action == "BUY" {
+			buys = append(buys, item)
+		}
+	}
+
+	// 1. Sells first
+	for _, item := range sells {
+		if item.ActionQty == 0 {
+			continue
+		}
+		s.placeRebalanceOrder(item, dryRun)
+	}
+
+	// 2. Buys
+	for _, item := range buys {
+		if item.ActionQty == 0 {
+			continue
+		}
+		s.placeRebalanceOrder(item, dryRun)
+	}
+
+	logWithTime("[REBALANCE] Custom Plan Execution Completed.")
+	return nil
+}
+
 func (s *Strategy) placeRebalanceOrder(item RebalanceItem, dryRun bool) {
 	logWithTime("[REBALANCE] %s %d shares of %s (Target: %d, Current: %d)",
 		item.Action, item.ActionQty, item.Symbol, item.TargetQty, item.CurrentQty)
