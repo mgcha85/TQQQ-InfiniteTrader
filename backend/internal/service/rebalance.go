@@ -355,6 +355,8 @@ func (s *Strategy) placeRebalanceOrder(item RebalanceItem, dryRun bool) {
 	exch := "NYS"
 	if item.Symbol == "TQQQ" {
 		exch = "NASD"
+	} else if item.Symbol == "PFIX" || item.Symbol == "SCHD" || item.Symbol == "TMF" {
+		exch = "AMS"
 	}
 
 	orderReq := kis.OrderReq{
