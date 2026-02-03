@@ -348,15 +348,17 @@ func (s *Strategy) placeRebalanceOrder(item RebalanceItem, dryRun bool) {
 	logWithTime("[REBALANCE] %s %d shares of %s (Target: %d, Current: %d)",
 		item.Action, item.ActionQty, item.Symbol, item.TargetQty, item.CurrentQty)
 
-	if dryRun {
-		return
-	}
-
 	exch := "NYS"
 	if item.Symbol == "TQQQ" {
 		exch = "NASD"
 	} else if item.Symbol == "PFIX" || item.Symbol == "SCHD" || item.Symbol == "TMF" {
-		exch = "AMS"
+		exch = "AMEX" // Order API uses 4-char codes (NASD, AMEX)
+	}
+
+	logWithTime("[REBALANCE] Preparing %s order for %s:%s (DryRun=%v)", item.Action, exch, item.Symbol, dryRun)
+
+	if dryRun {
+		return
 	}
 
 	orderReq := kis.OrderReq{
