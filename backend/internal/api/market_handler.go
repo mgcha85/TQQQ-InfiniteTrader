@@ -3,7 +3,6 @@ package api
 import (
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -37,50 +36,5 @@ func (h *Handler) Backfill(c *gin.Context) {
 		"start":  start,
 		"end":    end,
 		"note":   "Check server logs for progress (docker logs -f tqqq-backend)",
-	})
-}
-
-// GetCandles API: GET /api/market/candles?symbol=AAPL&start=2024-01-01&end=2024-01-02
-func (h *Handler) GetCandles(c *gin.Context) {
-	symbol := c.Query("symbol")
-	startStr := c.Query("start")
-	endStr := c.Query("end")
-
-	log.Printf("[API] GetCandles request: symbol=%s, start=%s, end=%s", symbol, startStr, endStr)
-
-	if symbol == "" || startStr == "" || endStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "symbol, start, end required"})
-		return
-	}
-
-	if h.MarketRepo == nil {
-		log.Printf("[API] ✗ GetCandles failed: MarketRepo is nil (DuckDB not initialized)")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Market data service not available"})
-		return
-	}
-
-	start, err := time.Parse("2006-01-02", startStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid start date"})
-		return
-	}
-	end, err := time.Parse("2006-01-02", endStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid end date"})
-		return
-	}
-
-	candles, err := h.MarketRepo.QueryCandles(symbol, start, end)
-	if err != nil {
-		log.Printf("[API] ✗ GetCandles query failed: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	log.Printf("[API] ✓ GetCandles success: symbol=%s, count=%d", symbol, len(candles))
-	c.JSON(http.StatusOK, gin.H{
-		"symbol": symbol,
-		"count":  len(candles),
-		"data":   candles,
 	})
 }

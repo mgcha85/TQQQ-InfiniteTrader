@@ -100,7 +100,7 @@ func main() {
 
 		// Market Data API
 		v1.POST("/market/backfill", handler.Backfill)
-		v1.GET("/market/candles", handler.GetCandles)
+
 	}
 
 	port := os.Getenv("PORT")
