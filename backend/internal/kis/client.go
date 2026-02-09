@@ -96,6 +96,7 @@ func (c *Client) issueToken() error {
 	jsonBody, _ := json.Marshal(body)
 
 	logKIS("POST %s (requesting OAuth token)", url)
+	logKIS("DEBUG: appkey=%s, appsecret=%s", c.Config.KisAppKey, c.Config.KisAppSecret)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
 	if err != nil {
