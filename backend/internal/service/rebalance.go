@@ -259,12 +259,44 @@ func (s *Strategy) CalculateRebalancePlan() (*RebalancePlan, error) {
 		})
 	}
 
+	// Calculate Expected Cash after rebalancing
+	netCashFlow := 0.0
+	for _, item := range rebalItems {
+		if item.Action == "BUY" {
+			netCashFlow -= float64(item.ActionQty) * item.CurrentPrice
+		} else if item.Action == "SELL" {
+			netCashFlow += float64(item.ActionQty) * item.CurrentPrice
+		}
+	}
+	targetCash := cash + netCashFlow
+
+	// Add CASH as an explicit item so the user can see its target weight/value
+	currentCashWt := 0.0
+	targetCashWt := 0.0
+	if totalEquity > 0 {
+		currentCashWt = cash / totalEquity
+		targetCashWt = targetCash / totalEquity
+	}
+
+	rebalItems = append(rebalItems, RebalanceItem{
+		Symbol:       "CASH",
+		CurrentQty:   1,
+		CurrentPrice: cash, // Represent 1 entity of total cash
+		CurrentVal:   cash,
+		CurrentWt:    currentCashWt,
+		TargetWt:     targetCashWt,
+		TargetVal:    targetCash,
+		TargetQty:    1,
+		Action:       "HOLD", // Cash naturally balances through trades
+		ActionQty:    0,
+	})
+
 	plan := &RebalancePlan{
 		TotalValue:    totalEquity,
 		Cash:          cash,
 		Items:         rebalItems,
 		EstimatedTax:  totalTax,
-		ActionSummary: fmt.Sprintf("Equity: $%.2f, Est. Tax: $%.2f", totalEquity, totalTax),
+		ActionSummary: fmt.Sprintf("Equity: $%.2f, Expected Cash: $%.2f, Est. Tax: $%.2f", totalEquity, targetCash, totalTax),
 	}
 
 	logWithTime("[REBALANCE] Plan calculated. Total Equity: $%.2f", totalEquity)
@@ -345,6 +377,11 @@ func (s *Strategy) ExecuteCustomRebalance(customPlan *RebalancePlan, dryRun bool
 }
 
 func (s *Strategy) placeRebalanceOrder(item RebalanceItem, dryRun bool) {
+	if item.Symbol == "CASH" {
+		logWithTime("[REBALANCE] Skipping order for CASH")
+		return
+	}
+
 	logWithTime("[REBALANCE] %s %d shares of %s (Target: %d, Current: %d)",
 		item.Action, item.ActionQty, item.Symbol, item.TargetQty, item.CurrentQty)
 
