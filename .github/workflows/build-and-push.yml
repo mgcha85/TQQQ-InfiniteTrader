@@ -54,44 +54,38 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-backend]
     steps:
-      - name: Deploy to Oracle Cloud (master → TQQQ-InfiniteTrader)
-        if: github.ref_name == 'master'
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            mkdir -p ~/TQQQ-InfiniteTrader
-            cd ~/TQQQ-InfiniteTrader
-            if [ ! -d ".git" ]; then
-              git clone -b master https://github.com/mgcha85/TQQQ-InfiniteTrader.git .
-            else
-              git pull origin master
-            fi
-            echo ${{ secrets.GHCR_TOKEN }} | podman login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-            podman-compose -f docker-compose.prod.yml pull
-            podman-compose -f docker-compose.prod.yml up -d
-            podman image prune -f
-            echo "✓ Master Deployment complete!"
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Deploy to Oracle Cloud (standalone → TQQQ-Standalone)
-        if: github.ref_name == 'standalone'
+      - name: Set deploy directory
+        id: vars
+        run: |
+          if [ "${{ github.ref_name }}" = "master" ]; then
+            echo "dir=/home/ubuntu/TQQQ-InfiniteTrader" >> $GITHUB_OUTPUT
+          else
+            echo "dir=/home/ubuntu/TQQQ-Standalone" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Copy deploy files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "docker-compose.prod.yml,start.sh,stop.sh"
+          target: ${{ steps.vars.outputs.dir }}
+
+      - name: Pull image and start service
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            mkdir -p ~/TQQQ-Standalone
-            cd ~/TQQQ-Standalone
-            if [ ! -d ".git" ]; then
-              git clone -b standalone https://github.com/mgcha85/TQQQ-InfiniteTrader.git .
-            else
-              git pull origin standalone
-            fi
+            cd ${{ steps.vars.outputs.dir }}
+            chmod +x start.sh stop.sh
             echo ${{ secrets.GHCR_TOKEN }} | podman login ghcr.io -u ${{ github.repository_owner }} --password-stdin
             podman-compose -f docker-compose.prod.yml pull
-            podman-compose -f docker-compose.prod.yml up -d
+            bash start.sh
             podman image prune -f
-            echo "✓ Standalone Deployment complete!"
+            echo "✓ Deployment complete!"
