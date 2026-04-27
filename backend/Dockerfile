@@ -1,5 +1,19 @@
 # ============================================
-# Stage 1: Builder
+# Stage 1: Frontend Builder
+# ============================================
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /frontend
+
+# Build context is project root, so frontend/ is accessible
+COPY frontend/package*.json ./
+RUN npm install --legacy-peer-deps
+
+COPY frontend/ .
+RUN npm run build
+
+# ============================================
+# Stage 2: Backend Builder
 # ============================================
 FROM golang:1.24 AS builder
 
@@ -9,11 +23,14 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y git build-essential
 
 # Copy go mod files first for caching
-COPY go.mod go.sum ./
+COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 
-# Copy source code
-COPY . .
+# Copy backend source code
+COPY backend/ .
+
+# Copy frontend build output into the embed path expected by main.go
+COPY --from=frontend-builder /frontend/build ./cmd/server/frontend/build
 
 # Build with optimizations
 RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o server ./cmd/server

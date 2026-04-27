@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"embed"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -18,6 +20,9 @@ import (
 	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/service"
 	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/worker"
 )
+
+//go:embed frontend/build
+var frontendFS embed.FS
 
 func main() {
 	// 1. Config
@@ -84,6 +89,13 @@ func main() {
 
 	r := gin.Default()
 
+	// Embed frontend build into binary and serve at "/"
+	sub, err := fs.Sub(frontendFS, "frontend/build")
+	if err != nil {
+		log.Fatal("Failed to create sub FS for frontend:", err)
+	}
+	api.RegisterStaticHandler(r, sub)
+
 	// API Group
 	v1 := r.Group("/api")
 	{
@@ -100,7 +112,7 @@ func main() {
 
 		// Market Data API
 		v1.POST("/market/backfill", handler.Backfill)
-		v1.GET("/market/candles", handler.GetCandles)
+
 	}
 
 	port := os.Getenv("PORT")
