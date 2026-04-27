@@ -87,5 +87,5 @@ jobs:
             echo ${{ secrets.GHCR_TOKEN }} | podman login ghcr.io -u ${{ github.repository_owner }} --password-stdin
             podman-compose -f docker-compose.prod.yml pull
             bash start.sh
-            podman image prune -f
+            podman image prune -af
             echo "✓ Deployment complete!"
