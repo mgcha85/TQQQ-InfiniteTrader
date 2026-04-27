@@ -3,7 +3,6 @@ services:
     image: ghcr.io/mgcha85/tqqq-backend:standalone
     container_name: tqqq-backend-standalone
     ports:
-      - "8083:8080"
       - "3001:8080"
     volumes:
       - ./data:/app/data
