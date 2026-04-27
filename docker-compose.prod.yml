@@ -4,6 +4,7 @@ services:
     container_name: tqqq-backend-standalone
     ports:
       - "8083:8080"
+      - "3001:8080"
     volumes:
       - ./data:/app/data
     env_file:
@@ -11,13 +12,4 @@ services:
     environment:
       - TZ=America/New_York
       - GIN_MODE=release
-    restart: always
-
-  frontend:
-    image: ghcr.io/mgcha85/tqqq-frontend:standalone
-    container_name: tqqq-frontend-standalone
-    ports:
-      - "3001:80"
-    depends_on:
-      - backend
     restart: always
