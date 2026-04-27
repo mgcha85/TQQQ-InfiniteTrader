@@ -3,6 +3,7 @@ package api
 import (
 	"io/fs"
 	"net/http"
+	"path"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -14,15 +15,27 @@ func RegisterStaticHandler(r *gin.Engine, sub fs.FS) {
 	fileServer := http.FileServer(http.FS(sub))
 
 	r.NoRoute(func(c *gin.Context) {
-		path := strings.TrimPrefix(c.Request.URL.Path, "/")
-		if path == "" {
-			path = "index.html"
+		requestPath := strings.TrimPrefix(c.Request.URL.Path, "/")
+		if requestPath == "" {
+			requestPath = "index.html"
+		}
+
+		// Never serve SPA fallback for unknown API routes.
+		if strings.HasPrefix(requestPath, "api/") {
+			c.Status(http.StatusNotFound)
+			return
 		}
 
 		// Try to serve exact file
-		if f, err := sub.Open(path); err == nil {
+		if f, err := sub.Open(requestPath); err == nil {
 			f.Close()
 			fileServer.ServeHTTP(c.Writer, c.Request)
+			return
+		}
+
+		// Missing static assets should be 404, not index.html.
+		if ext := path.Ext(requestPath); ext != "" || strings.HasPrefix(requestPath, "_app/") {
+			c.Status(http.StatusNotFound)
 			return
 		}
 
@@ -32,6 +45,7 @@ func RegisterStaticHandler(r *gin.Engine, sub fs.FS) {
 			c.Status(http.StatusNotFound)
 			return
 		}
+		c.Header("Cache-Control", "no-store")
 		c.Header("Content-Type", "text/html; charset=utf-8")
 		c.Status(http.StatusOK)
 		_, _ = c.Writer.Write(data)
