@@ -21,7 +21,7 @@ import (
 	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/worker"
 )
 
-//go:embed frontend/build
+//go:embed all:frontend/build
 var frontendFS embed.FS
 
 func main() {
