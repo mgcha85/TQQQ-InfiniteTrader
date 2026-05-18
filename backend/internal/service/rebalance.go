@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/kis"
+	"github.com/mgcha85/TQQQ-InfiniteTrader/backend/internal/model"
 )
 
 // RebalancePlan holds the result of a rebalance calculation
@@ -102,6 +103,17 @@ func (s *Strategy) CalculateRebalancePlan() (*RebalancePlan, error) {
 	}
 	var tempItems []TempItem
 	totalEquity := cash
+
+	settings := model.UserSettings{CashRatio: 0}
+	if err := s.DB.First(&settings).Error; err != nil {
+		logWithTime("[REBALANCE] No settings found, defaulting CashRatio=0%%")
+	}
+	if settings.CashRatio < 0 {
+		settings.CashRatio = 0
+	}
+	if settings.CashRatio > 100 {
+		settings.CashRatio = 100
+	}
 
 	for sym, baseWt := range baseWeights {
 		exch := exchCodes[sym]
@@ -202,6 +214,8 @@ func (s *Strategy) CalculateRebalancePlan() (*RebalancePlan, error) {
 	// 5. Finalize Items
 	var rebalItems []RebalanceItem
 	var totalTax float64
+	investableRatio := 1.0 - (settings.CashRatio / 100.0)
+	investableEquity := totalEquity * investableRatio
 
 	for _, tmp := range tempItems {
 		hInfo, exists := holdingsMap[tmp.Symbol]
@@ -218,8 +232,12 @@ func (s *Strategy) CalculateRebalancePlan() (*RebalancePlan, error) {
 			currentWt = currentVal / totalEquity
 		}
 
-		targetVal := totalEquity * tmp.RawWt
+		targetVal := investableEquity * tmp.RawWt
 		targetQty := int(math.Floor(targetVal / tmp.Price))
+		targetPortfolioWt := 0.0
+		if totalEquity > 0 {
+			targetPortfolioWt = targetVal / totalEquity
+		}
 
 		action := "HOLD"
 		actionQty := 0
@@ -246,7 +264,7 @@ func (s *Strategy) CalculateRebalancePlan() (*RebalancePlan, error) {
 			CurrentPrice: tmp.Price,
 			CurrentVal:   currentVal,
 			CurrentWt:    currentWt,
-			TargetWt:     tmp.RawWt,
+			TargetWt:     targetPortfolioWt,
 			TargetVal:    targetVal,
 			TargetQty:    targetQty,
 			Action:       action,
@@ -296,7 +314,7 @@ func (s *Strategy) CalculateRebalancePlan() (*RebalancePlan, error) {
 		Cash:          cash,
 		Items:         rebalItems,
 		EstimatedTax:  totalTax,
-		ActionSummary: fmt.Sprintf("Equity: $%.2f, Expected Cash: $%.2f, Est. Tax: $%.2f", totalEquity, targetCash, totalTax),
+		ActionSummary: fmt.Sprintf("Equity: $%.2f, CashRatio: %.1f%%, Investable: $%.2f, Expected Cash: $%.2f, Est. Tax: $%.2f", totalEquity, settings.CashRatio, investableEquity, targetCash, totalTax),
 	}
 
 	logWithTime("[REBALANCE] Plan calculated. Total Equity: $%.2f", totalEquity)

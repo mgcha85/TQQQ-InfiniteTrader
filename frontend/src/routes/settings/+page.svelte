@@ -14,6 +14,7 @@
         Principal: 10000,
         SplitCount: 40,
         TargetRate: 0.1,
+        CashRatio: 0,
         Symbols: "TQQQ",
         IsActive: false,
     });
@@ -34,6 +35,7 @@
     async function save() {
         saving = true;
         try {
+            settings.CashRatio = Math.min(100, Math.max(0, settings.CashRatio));
             await updateSettings(settings);
             alert("Settings saved successfully");
         } catch (e) {
@@ -116,6 +118,38 @@
                     />
                     <p class="text-xs text-slate-500">
                         Decimal format (0.10 = 10%)
+                    </p>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="text-sm font-medium text-slate-300" for="cashRatio"
+                        >Cash Reserve Ratio (%)</label
+                    >
+                    <div class="space-y-3">
+                        <input
+                            type="range"
+                            id="cashRatio"
+                            min="0"
+                            max="100"
+                            step="1"
+                            bind:value={settings.CashRatio}
+                            class="w-full accent-cyan-500"
+                        />
+                        <div class="flex items-center gap-2">
+                            <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="1"
+                                bind:value={settings.CashRatio}
+                                required
+                                class="input-field w-28"
+                            />
+                            <span class="text-slate-300">%</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500">
+                        50 = keep 50% cash, 0 = use full equity for rebalancing
                     </p>
                 </div>
 

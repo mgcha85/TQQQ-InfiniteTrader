@@ -48,6 +48,7 @@ func (h *Handler) GetSettings(c *gin.Context) {
 			Principal:  10000,
 			SplitCount: 40,
 			TargetRate: 0.10,
+			CashRatio:  0,
 			IsActive:   false,
 			Symbols:    "TQQQ",
 		})
@@ -64,6 +65,13 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 		return
 	}
 
+	if input.CashRatio < 0 {
+		input.CashRatio = 0
+	}
+	if input.CashRatio > 100 {
+		input.CashRatio = 100
+	}
+
 	// Upsert
 	var settings model.UserSettings
 	if err := h.Repo.First(&settings).Error; err != nil {
@@ -72,6 +80,7 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 		settings.Principal = input.Principal
 		settings.SplitCount = input.SplitCount
 		settings.TargetRate = input.TargetRate
+		settings.CashRatio = input.CashRatio
 		settings.IsActive = input.IsActive
 		settings.Symbols = input.Symbols
 		h.Repo.Save(&settings)
