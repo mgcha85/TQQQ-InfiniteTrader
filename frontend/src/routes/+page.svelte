@@ -2,9 +2,11 @@
     import { onMount } from "svelte";
     import {
         fetchRebalancePreview,
+        fetchSettings,
         executeCustomRebalance,
         type RebalancePlan,
         type RebalanceItem,
+        type UserSettings,
     } from "$lib/api";
     import {
         Spinner,
@@ -25,12 +27,21 @@
     let errorMsg = $state("");
     let lastUpdated = $state("");
     let editMode = $state(false);
+    let settings: UserSettings = $state({
+        Principal: 10000,
+        SplitCount: 40,
+        TargetRate: 0.1,
+        CashRatio: 0,
+        Symbols: "TQQQ",
+        IsActive: false,
+    });
 
     async function loadPreview() {
         loading = true;
         errorMsg = "";
         editMode = false;
         try {
+            settings = await fetchSettings();
             plan = await fetchRebalancePreview();
             editedPlan = JSON.parse(JSON.stringify(plan)); // Deep copy
             lastUpdated = new Date().toLocaleTimeString();
@@ -98,6 +109,13 @@
         const buys = editedPlan.items.filter((i) => i.action === "BUY");
         const sells = editedPlan.items.filter((i) => i.action === "SELL");
         return `BUY: ${buys.map((i) => `${i.symbol}(${i.action_qty})`).join(", ")}\nSELL: ${sells.map((i) => `${i.symbol}(${i.action_qty})`).join(", ")}`;
+    }
+
+    function getExpectedCashRatioPercent(): number {
+        if (!plan) return 0;
+        const cashItem = plan.items.find((i) => i.symbol === "CASH");
+        if (!cashItem) return 0;
+        return cashItem.target_wt * 100;
     }
 
     onMount(() => {
@@ -169,7 +187,7 @@
 
     {#if plan}
         <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
             <div class="stat-card bg-slate-800 p-6 rounded-lg shadow-lg">
                 <div class="text-slate-400 text-sm">Total Equity</div>
                 <div class="text-3xl font-bold text-white">
@@ -188,6 +206,22 @@
                 <div class="text-slate-400 text-sm">Est. Tax Impact</div>
                 <div class="text-3xl font-bold text-red-400">
                     ${plan.estimated_tax.toFixed(2)}
+                </div>
+            </div>
+            <div
+                class="stat-card bg-slate-800 p-6 rounded-lg shadow-lg border border-cyan-900/30"
+            >
+                <div class="text-slate-400 text-sm">Configured Cash Ratio</div>
+                <div class="text-3xl font-bold text-cyan-400">
+                    {settings.CashRatio.toFixed(1)}%
+                </div>
+            </div>
+            <div
+                class="stat-card bg-slate-800 p-6 rounded-lg shadow-lg border border-emerald-900/30"
+            >
+                <div class="text-slate-400 text-sm">Expected Final Cash Ratio</div>
+                <div class="text-3xl font-bold text-emerald-400">
+                    {getExpectedCashRatioPercent().toFixed(1)}%
                 </div>
             </div>
         </div>

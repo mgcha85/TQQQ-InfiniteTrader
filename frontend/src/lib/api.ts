@@ -11,6 +11,7 @@ export interface UserSettings {
     Principal: number;
     SplitCount: number;
     TargetRate: number;
+    CashRatio: number;
     Symbols: string;
     IsActive: boolean;
 }

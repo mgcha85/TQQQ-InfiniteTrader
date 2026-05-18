@@ -11,6 +11,7 @@ type UserSettings struct {
 	Principal  float64 // Total Investment (e.g. 10000)
 	SplitCount int     // Default 40
 	TargetRate float64 // Default 0.10 (10%)
+	CashRatio  float64 // Cash reserve ratio in percent (0~100)
 	Symbols    string  // Comma separated, e.g., "TQQQ,SOXL"
 	IsActive   bool    // Logic On/Off
 }
